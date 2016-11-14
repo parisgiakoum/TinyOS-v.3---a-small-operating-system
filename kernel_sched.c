@@ -11,6 +11,9 @@
 #include <valgrind/valgrind.h>
 #endif
 
+//*****OUR CODE*****
+#define MAX_QUEUES 3
+//*****OUR CODE*****
 
 /*
    The thread layout.
@@ -127,6 +130,9 @@ void gain(int preempt); /* forward */
 static void thread_start()
 {
   gain(1);
+  //**********OUR CODE***************
+      CURTHREAD->priority=0;
+  //**********OUR CODE***************
   CURTHREAD->thread_func();
 
   /* We are not supposed to get here! */
@@ -217,8 +223,11 @@ CCB cctx[MAX_CORES];
   head and tail of this list are stored in  SCHED.
 */
 
+//*****OUR CODE*****
+rlnode SCHED[MAX_QUEUES];				/* The scheduler queues */
+//*****OUR CODE*****
 
-rlnode SCHED;                         /* The scheduler queue */
+//rlnode SCHED;                         /* The scheduler queue */
 Mutex sched_spinlock = MUTEX_INIT;    /* spinlock for scheduler queue */
 
 
@@ -243,7 +252,12 @@ void sched_queue_add(TCB* tcb)
 {
   /* Insert at the end of the scheduling list */
   Mutex_Lock(& sched_spinlock);
-  rlist_push_back(& SCHED, & tcb->sched_node);
+
+  //*****OUR CODE*****
+    rlist_push_back(&SCHED[tcb->priority], & tcb->sched_node);
+    //*****OUR CODE*****
+
+    //rlist_push_back(& SCHED, & tcb->sched_node);
   Mutex_Unlock(& sched_spinlock);
 
   /* Restart possibly halted cores */
@@ -257,8 +271,17 @@ void sched_queue_add(TCB* tcb)
 */
 TCB* sched_queue_select()
 {
+	int i=0;
   Mutex_Lock(& sched_spinlock);
-  rlnode * sel = rlist_pop_front(& SCHED);
+
+  //*****OUR CODE*****
+  while((&SCHED[i]==NULL)&& (i!=MAX_QUEUES-1)){
+  	  i++;
+    }
+  rlnode * sel = rlist_pop_front(& SCHED[i]);
+  //*****OUR CODE*****
+
+  //rlnode * sel = rlist_pop_front(& SCHED);
   Mutex_Unlock(& sched_spinlock);
 
   return sel->tcb;  /* When the list is empty, this is NULL */
@@ -322,6 +345,28 @@ void sleep_releasing(Thread_state state, Mutex* mx)
   if(preempt) preempt_on;
 }
 
+//*****OUR CODE*****
+void priority_set(TCB* thread)
+{
+	switch(thread->state){
+		case RUNNING:
+			if(thread->priority!=MAX_QUEUES-1)
+				thread->priority++;
+			break;
+		case READY:
+		case STOPPED:
+			if(thread->priority!=0)
+				thread->priority--;
+			break;
+		case EXITED:
+			break;
+		default:
+			fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
+			assert(0);  /* It should not be READY or EXITED ! */
+
+	}
+}
+//*****OUR CODE*****
 
 /* This function is the entry point to the scheduler's context switching */
 
@@ -338,6 +383,11 @@ void yield()
   int current_ready = 0;
 
   Mutex_Lock(& current->state_spinlock);
+
+  //*****OUR CODE*****
+  priority_set(current);
+  //*****OUR CODE*****
+
   switch(current->state)
   {
     case RUNNING:
@@ -461,7 +511,15 @@ static void idle_thread()
  */
 void initialize_scheduler()
 {
-  rlnode_init(&SCHED, NULL);
+
+	//*****OUR CODE*****
+		int i=0;
+		for(i=0; i<MAX_QUEUES;i++)
+		{
+			rlnode_init(&SCHED[i], NULL);
+		}
+	  //*****OUR CODE*****
+	//rlnode_init(&SCHED, NULL);
 }
 
 

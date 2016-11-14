@@ -90,6 +90,10 @@ typedef struct thread_control_block
   /* scheduler data */  
   rlnode sched_node;      /**< node to use when queueing in the scheduler list */
 
+  //*****OUR CODE*****
+    int priority;
+  //*****OUR CODE*****
+
   struct thread_control_block * prev;  /**< previous context */
   struct thread_control_block * next;  /**< next context */
   
