@@ -217,6 +217,13 @@ void run_scheduler(void);
  */
 void initialize_scheduler(void); 
 
+/**
+  @brief Boosts nodes from low level Queues.
+
+  This function is called every BOOST_LIMIT quanta so that
+  threads in lower level queues don't stay inactive.
+ */
+void boost_queues();
 
 /**
   @brief Quantum (in microseconds) 
@@ -228,4 +235,3 @@ void initialize_scheduler(void);
 /** @} */
 
 #endif
-

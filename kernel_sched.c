@@ -12,7 +12,9 @@
 #endif
 
 //*****OUR CODE*****
-#define MAX_QUEUES 3
+#define MAX_QUEUES 5
+#define BOOST_LIMIT 5
+int boost_counter;
 //*****OUR CODE*****
 
 /*
@@ -130,9 +132,7 @@ void gain(int preempt); /* forward */
 static void thread_start()
 {
   gain(1);
-  //**********OUR CODE***************
-      CURTHREAD->priority=0;
-  //**********OUR CODE***************
+
   CURTHREAD->thread_func();
 
   /* We are not supposed to get here! */
@@ -156,6 +156,9 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->type = NORMAL_THREAD;
   tcb->state = INIT;
   tcb->phase = CTX_CLEAN;
+  //**********OUR CODE***************
+  tcb->priority=0;
+  //**********OUR CODE***************
   tcb->state_spinlock = MUTEX_INIT;
   tcb->thread_func = func;
   rlnode_init(& tcb->sched_node, tcb);  /* Intrusive list node */
@@ -271,11 +274,12 @@ void sched_queue_add(TCB* tcb)
 */
 TCB* sched_queue_select()
 {
-	int i=0;
-  Mutex_Lock(& sched_spinlock);
 
+  Mutex_Lock(& sched_spinlock);
+  int i=0;
   //*****OUR CODE*****
-  while((&SCHED[i]==NULL)&& (i!=MAX_QUEUES-1)){
+  while(is_rlist_empty(&SCHED[i]))
+  {
   	  i++;
     }
   rlnode * sel = rlist_pop_front(& SCHED[i]);
@@ -357,7 +361,6 @@ void priority_set(TCB* thread)
 		case STOPPED:
 			if(thread->priority!=0)
 				thread->priority--;
-			break;
 		case EXITED:
 			break;
 		default:
@@ -366,12 +369,22 @@ void priority_set(TCB* thread)
 
 	}
 }
+void boost_queues(){
+	int i;
+	for(i=1; i<MAX_QUEUES;i++)
+	{
+		rlnode_ptr head=&SCHED[i];
+		while(!is_rlist_empty(head)){
+			head->tcb->priority--;
+			head=head->prev;
+		}
+	}
+}
 //*****OUR CODE*****
-
 /* This function is the entry point to the scheduler's context switching */
 
 void yield()
-{ 
+{
   /* Reset the timer, so that we are not interrupted by ALARM */
   bios_cancel_timer();
 
@@ -383,8 +396,15 @@ void yield()
   int current_ready = 0;
 
   Mutex_Lock(& current->state_spinlock);
-
   //*****OUR CODE*****
+    	if(boost_counter >= BOOST_LIMIT){
+    		boost_counter=0;
+    		boost_queues();
+    	}
+    	else{
+    		boost_counter++;
+    	}
+
   priority_set(current);
   //*****OUR CODE*****
 
@@ -518,6 +538,7 @@ void initialize_scheduler()
 		{
 			rlnode_init(&SCHED[i], NULL);
 		}
+		boost_counter=0;
 	  //*****OUR CODE*****
 	//rlnode_init(&SCHED, NULL);
 }
@@ -526,6 +547,7 @@ void initialize_scheduler()
 
 void run_scheduler()
 {
+
   CCB * curcore = & CURCORE;
 
   /* Initialize current CCB */
