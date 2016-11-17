@@ -157,7 +157,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->state = INIT;
   tcb->phase = CTX_CLEAN;
   //**********OUR CODE***************
-  tcb->priority=0;
+  tcb->priority=MAX_QUEUES-1;
   //**********OUR CODE***************
   tcb->state_spinlock = MUTEX_INIT;
   tcb->thread_func = func;
@@ -373,13 +373,12 @@ void priority_set(TCB* thread)
 		default:
 			fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
 			assert(0);  /* It should not be READY or EXITED ! */
-
 	}
 }
 void boost_queues(){
 	unsigned int i;
 	rlnode* node;
-	for(i=0; i<MAX_QUEUES; i++)
+	for(i=1; i<MAX_QUEUES; i++)
 	{
 		node=&SCHED[i];
 		node=node->next;
@@ -388,6 +387,8 @@ void boost_queues(){
 			node->tcb->priority--;
 			node=node->next;
 		}
+		rlist_push_back(&SCHED[i-1],&SCHED[i]);
+		rlist_remove(&SCHED[i]);
 	}
 }
 //*****OUR CODE*****
@@ -407,7 +408,10 @@ void yield()
 
   Mutex_Lock(& current->state_spinlock);
   //*****OUR CODE*****
-  priority_set(current);
+  if(current->type!=IDLE_THREAD){
+	  priority_set(current);
+  }
+
   if(boost_counter >= BOOST_LIMIT){
       		boost_counter=0;
       		boost_queues();
