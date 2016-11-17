@@ -14,7 +14,7 @@
 //*****OUR CODE*****
 #define MAX_QUEUES 5
 #define BOOST_LIMIT 5
-int boost_counter;
+int boost_counter=0; // Initialize boost counter;
 //*****OUR CODE*****
 
 /*
@@ -276,13 +276,14 @@ TCB* sched_queue_select()
 {
 
   Mutex_Lock(& sched_spinlock);
-  int i=0;
+  unsigned int i=0;
+
   //*****OUR CODE*****
-  while(is_rlist_empty(&SCHED[i]))
+  for(i=0;)
   {
   	  i++;
     }
-  rlnode * sel = rlist_pop_front(& SCHED[i]);
+  rlnode* sel = rlist_pop_front(& SCHED[i]);
   //*****OUR CODE*****
 
   //rlnode * sel = rlist_pop_front(& SCHED);
@@ -358,9 +359,13 @@ void priority_set(TCB* thread)
 				thread->priority++;
 			break;
 		case READY:
+			fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
+			assert(0);
+			/* no break */
 		case STOPPED:
 			if(thread->priority!=0)
 				thread->priority--;
+				/* no break */
 		case EXITED:
 			break;
 		default:
@@ -370,14 +375,15 @@ void priority_set(TCB* thread)
 	}
 }
 void boost_queues(){
-	int i;
-	for(i=1; i<MAX_QUEUES;i++)
+	unsigned int i;
+	for(i=MAX_QUEUES-1; i>0; i--)
 	{
-		rlnode_ptr head=&SCHED[i];
-		while(!is_rlist_empty(head)){
-			head->tcb->priority--;
-			head=head->prev;
-		}
+		rlnode* node=&(SCHED[i]->next);
+			while(node!=&SCHED[i])
+			{
+				node->tcb->priority--;
+				node=node->next;
+			}
 	}
 }
 //*****OUR CODE*****
@@ -397,21 +403,21 @@ void yield()
 
   Mutex_Lock(& current->state_spinlock);
   //*****OUR CODE*****
-    	if(boost_counter >= BOOST_LIMIT){
-    		boost_counter=0;
-    		boost_queues();
-    	}
-    	else{
-    		boost_counter++;
-    	}
-
   priority_set(current);
+  if(boost_counter >= BOOST_LIMIT){
+      		boost_counter=0;
+      		boost_queues();
+      	}
+      	else{
+      		boost_counter++;
+      	}
   //*****OUR CODE*****
 
   switch(current->state)
   {
     case RUNNING:
       current->state = READY;
+      /* no break */
     case READY: /* We were awakened before we managed to sleep! */
       current_ready = 1;
       break;
@@ -538,7 +544,6 @@ void initialize_scheduler()
 		{
 			rlnode_init(&SCHED[i], NULL);
 		}
-		boost_counter=0;
 	  //*****OUR CODE*****
 	//rlnode_init(&SCHED, NULL);
 }
