@@ -276,14 +276,16 @@ TCB* sched_queue_select()
 {
 
   Mutex_Lock(& sched_spinlock);
-  unsigned int i=0;
-
   //*****OUR CODE*****
-  for(i=0;)
+  unsigned int i=0;
+  rlnode* sel;
+  for(i=0; i<MAX_QUEUES;i++)
   {
-  	  i++;
+  	  if(!is_rlist_empty(&SCHED[i])){
+  	  	sel = rlist_pop_front(&SCHED[i]);
+  	  	break;
+  	  }
     }
-  rlnode* sel = rlist_pop_front(& SCHED[i]);
   //*****OUR CODE*****
 
   //rlnode * sel = rlist_pop_front(& SCHED);
@@ -376,14 +378,16 @@ void priority_set(TCB* thread)
 }
 void boost_queues(){
 	unsigned int i;
-	for(i=MAX_QUEUES-1; i>0; i--)
+	rlnode* node;
+	for(i=0; i<MAX_QUEUES; i++)
 	{
-		rlnode* node=&(SCHED[i]->next);
-			while(node!=&SCHED[i])
-			{
-				node->tcb->priority--;
-				node=node->next;
-			}
+		node=&SCHED[i];
+		node=node->next;
+		while(node!=&SCHED[i])
+		{
+			node->tcb->priority--;
+			node=node->next;
+		}
 	}
 }
 //*****OUR CODE*****
