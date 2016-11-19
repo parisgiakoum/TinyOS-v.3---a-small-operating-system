@@ -69,17 +69,26 @@ Mutex kernel_mutex = MUTEX_INIT;          /* lock for resource tables */
 void Mutex_Lock(Mutex* lock)
 {
 #define MUTEX_SPINS 1000
+#define DEAD_SPINS 7
 
   int spin=MUTEX_SPINS;
+  int dcounter=0;
   while(__atomic_test_and_set(lock,__ATOMIC_ACQUIRE)) {
     while(__atomic_load_n(lock, __ATOMIC_RELAXED)) {
       __builtin_ia32_pause();      
-      if(spin>0) 
-      	spin--; 
+      if(spin>0)
+      	spin--;
       else { 
-      	spin=MUTEX_SPINS; 
+      	spin=MUTEX_SPINS;
+      	dcounter++;
       	if(get_core_preemption())
-      		yield(); 
+      	{
+      		if(dcounter>=DEAD_SPINS){
+      			CURTHREAD->bstate=DEADLOCKED;
+      			dcounter=0;
+      		}
+      		yield();
+      	}
       }
     }
   }

@@ -62,6 +62,12 @@ typedef enum {
   NORMAL_THREAD   /**< Marks a normal thread */
 } Thread_type;
 
+/** @brief Blocked state. */
+typedef enum {
+  NONE,
+  DEADLOCKED   		/**< Marks a Deadlocked thread */
+} Blocked_state;
+
 /**
   @brief The thread control block
 
@@ -91,7 +97,10 @@ typedef struct thread_control_block
   rlnode sched_node;      /**< node to use when queueing in the scheduler list */
 
   //*****OUR CODE*****
-    int priority;
+  Blocked_state bstate; 		/**< The special state of a blocked thread. */
+
+  unsigned int priority;		/**< stores the value of each thread's priority*/
+  unsigned int quanta_timer;	/**< stores the value of how many quanta have passed since each thread has called yield() and waits to be scheduled*/
   //*****OUR CODE*****
 
   struct thread_control_block * prev;  /**< previous context */

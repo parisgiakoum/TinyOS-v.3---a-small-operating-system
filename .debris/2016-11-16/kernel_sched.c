@@ -14,10 +14,7 @@
 //*****OUR CODE*****
 #define MAX_QUEUES 5
 #define BOOST_LIMIT 5
-#define BLOCKED_QUANTA_LIMIT 80*QUANTUM
-
-uint64_t total_quanta=0;
-int boost_counter=0; // Initialize boost counter;
+int boost_counter;
 //*****OUR CODE*****
 
 /*
@@ -160,9 +157,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->state = INIT;
   tcb->phase = CTX_CLEAN;
   //**********OUR CODE***************
-  tcb->priority=MAX_QUEUES/2;
-  tcb->quanta_timer=0;
-  tcb->bstate=NONE;
+  tcb->priority=0;
   //**********OUR CODE***************
   tcb->state_spinlock = MUTEX_INIT;
   tcb->thread_func = func;
@@ -281,16 +276,13 @@ TCB* sched_queue_select()
 {
 
   Mutex_Lock(& sched_spinlock);
+  int i=0;
   //*****OUR CODE*****
-  unsigned int i=0;
-  rlnode* sel;
-  for(i=0; i<MAX_QUEUES;i++)
+  while(is_rlist_empty(SCHED[i]->tcb->prev))
   {
-  	  if(!is_rlist_empty(&SCHED[i])){
-  	  	sel = rlist_pop_front(&SCHED[i]);
-  	  	break;
-  	  }
+  	  i++;
     }
+  rlnode * sel = rlist_pop_front(& SCHED[i]);
   //*****OUR CODE*****
 
   //rlnode * sel = rlist_pop_front(& SCHED);
@@ -366,41 +358,27 @@ void priority_set(TCB* thread)
 				thread->priority++;
 			break;
 		case READY:
-			fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
-			assert(0);
-			/* no break */
+			break;
 		case STOPPED:
-			if(thread->bstate==DEADLOCKED)
-			{
-				thread->bstate=NONE;
-				thread->priority=MAX_QUEUES-1;
-			}else{
-				if(thread->priority!=0)
-					thread->priority--;
-			}
-			/* no break */
+			if(thread->priority!=0)
+				thread->priority--;
 		case EXITED:
 			break;
 		default:
 			fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
 			assert(0);  /* It should not be READY or EXITED ! */
+
 	}
 }
 void boost_queues(){
-	unsigned int i;
-	rlnode* node;
-	for(i=1; i<MAX_QUEUES; i++)
+	int i;
+	for(i=1; i<MAX_QUEUES;i++)
 	{
-		node=&SCHED[i];
-		node=node->next;
-		unsigned int j;
-		for(j=0; j<rlist_len(&SCHED[i]); j++)
-		{
-			node->tcb->priority--;
-			node=node->next;
+		rlnode_ptr head=&SCHED[i];
+		while(!is_rlist_empty(head)){
+			head->tcb->priority--;
+			head=head->prev;
 		}
-		rlist_push_back(&SCHED[i-1],&SCHED[i]);
-		rlist_remove(&SCHED[i]);
 	}
 }
 //*****OUR CODE*****
@@ -409,7 +387,7 @@ void boost_queues(){
 void yield()
 {
   /* Reset the timer, so that we are not interrupted by ALARM */
-	bios_cancel_timer();
+  bios_cancel_timer();
 
   /* We must stop preemption but save it! */
   int preempt = preempt_off;
@@ -420,24 +398,21 @@ void yield()
 
   Mutex_Lock(& current->state_spinlock);
   //*****OUR CODE*****
+    	if(boost_counter >= BOOST_LIMIT){
+    		boost_counter=0;
+    		boost_queues();
+    	}
+    	else{
+    		boost_counter++;
+    	}
 
-  if(current->type!=IDLE_THREAD){
-	  priority_set(current);
-	  if(boost_counter >= BOOST_LIMIT){
-	       		boost_counter=0;
-	       		boost_queues();
-	       	}
-	       	else{
-	       		boost_counter++;
-	       	}
-  }
-
+  priority_set(current);
   //*****OUR CODE*****
+
   switch(current->state)
   {
     case RUNNING:
       current->state = READY;
-      /* no break */
     case READY: /* We were awakened before we managed to sleep! */
       current_ready = 1;
       break;
@@ -531,9 +506,7 @@ void gain(int preempt)
   if(preempt) preempt_on;
 
   /* Set a 1-quantum alarm */
-  //*****OUR CODE*****
-  bios_set_timer(QUANTUM*(current->priority+1));
-  //*****OUR CODE*****
+  bios_set_timer(QUANTUM);
 }
 
 
@@ -566,6 +539,7 @@ void initialize_scheduler()
 		{
 			rlnode_init(&SCHED[i], NULL);
 		}
+		boost_counter=0;
 	  //*****OUR CODE*****
 	//rlnode_init(&SCHED, NULL);
 }
