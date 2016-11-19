@@ -14,6 +14,9 @@
 //*****OUR CODE*****
 #define MAX_QUEUES 5
 #define BOOST_LIMIT 5
+#define BLOCKED_QUANTA_LIMIT 80*QUANTUM
+
+uint64_t total_quanta=0;
 int boost_counter=0; // Initialize boost counter;
 //*****OUR CODE*****
 
@@ -157,7 +160,9 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->state = INIT;
   tcb->phase = CTX_CLEAN;
   //**********OUR CODE***************
-  tcb->priority=MAX_QUEUES-1;
+  tcb->priority=MAX_QUEUES/2;
+  tcb->quanta_timer=0;
+  tcb->bstate=NONE;
   //**********OUR CODE***************
   tcb->state_spinlock = MUTEX_INIT;
   tcb->thread_func = func;
@@ -366,7 +371,14 @@ void priority_set(TCB* thread)
 			/* no break */
 		case STOPPED:
 			if(thread->priority!=0)
-				thread->priority--;
+				if(thread->bstate==DEADLOCKED)
+				{
+
+					thread->priority=MAX_QUEUES-1;
+
+				}else{
+					thread->priority--;
+				}
 				/* no break */
 		case EXITED:
 			break;
@@ -382,9 +394,18 @@ void boost_queues(){
 	{
 		node=&SCHED[i];
 		node=node->next;
-		while(node!=&SCHED[i])
+		unsigned int j;
+		for(j=0; j<rlist_len(&SCHED[i]); j++)
 		{
-			node->tcb->priority--;
+			assert(node->tcb->quanta_timer!=0);
+			if(BLOCKED_QUANTA_LIMIT<=(total_quanta - node->tcb->quanta_timer))
+			{
+				rlnode* temp=rlist_pop_front(node->prev);
+				temp->tcb->priority=0;
+				rlist_push_front(&SCHED[0], temp);
+			}
+			else
+				node->tcb->priority--;
 			node=node->next;
 		}
 		rlist_push_back(&SCHED[i-1],&SCHED[i]);
@@ -397,7 +418,7 @@ void boost_queues(){
 void yield()
 {
   /* Reset the timer, so that we are not interrupted by ALARM */
-  bios_cancel_timer();
+	TimerDuration t_left = bios_cancel_timer();
 
   /* We must stop preemption but save it! */
   int preempt = preempt_off;
@@ -408,19 +429,21 @@ void yield()
 
   Mutex_Lock(& current->state_spinlock);
   //*****OUR CODE*****
+  if(current->type!=IDLE_THREAD)
+	  total_quanta=total_quanta+(QUANTUM*current->priority+1) - t_left;
+
   if(current->type!=IDLE_THREAD){
 	  priority_set(current);
+	  if(boost_counter >= BOOST_LIMIT){
+	       		boost_counter=0;
+	       		boost_queues();
+	       	}
+	       	else{
+	       		boost_counter++;
+	       	}
   }
 
-  if(boost_counter >= BOOST_LIMIT){
-      		boost_counter=0;
-      		boost_queues();
-      	}
-      	else{
-      		boost_counter++;
-      	}
   //*****OUR CODE*****
-
   switch(current->state)
   {
     case RUNNING:
@@ -464,6 +487,7 @@ void yield()
   /* This is where we get after we are switched back on! A long time 
      may have passed. Start a new timeslice... 
    */
+  current->quanta_timer=total_quanta;
   gain(preempt);
 }
 
@@ -519,7 +543,9 @@ void gain(int preempt)
   if(preempt) preempt_on;
 
   /* Set a 1-quantum alarm */
-  bios_set_timer(QUANTUM);
+  //*****OUR CODE*****
+  bios_set_timer(QUANTUM*(current->priority+1));
+  //*****OUR CODE*****
 }
 
 
