@@ -12,8 +12,8 @@
 #endif
 
 //*****OUR CODE*****
-#define MAX_QUEUES 5
-#define BOOST_LIMIT 5
+#define MAX_QUEUES 6
+#define BOOST_LIMIT 60
 #define BLOCKED_QUANTA_LIMIT 80*QUANTUM
 
 uint64_t total_quanta=0;
@@ -160,8 +160,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->state = INIT;
   tcb->phase = CTX_CLEAN;
   //**********OUR CODE***************
-  tcb->priority=MAX_QUEUES/2;
-  tcb->quanta_timer=0;
+  tcb->priority=0;
   tcb->bstate=NONE;
   //**********OUR CODE***************
   tcb->state_spinlock = MUTEX_INIT;
@@ -261,7 +260,7 @@ void sched_queue_add(TCB* tcb)
   /* Insert at the end of the scheduling list */
   Mutex_Lock(& sched_spinlock);
 
-  //*****OUR CODE*****
+  	//*****OUR CODE*****
     rlist_push_back(&SCHED[tcb->priority], & tcb->sched_node);
     //*****OUR CODE*****
 
@@ -286,7 +285,8 @@ TCB* sched_queue_select()
   rlnode* sel;
   for(i=0; i<MAX_QUEUES;i++)
   {
-  	  if(!is_rlist_empty(&SCHED[i])){
+  	  if(!is_rlist_empty(&SCHED[i])||i==MAX_QUEUES-1)
+  	  {
   	  	sel = rlist_pop_front(&SCHED[i]);
   	  	break;
   	  }
@@ -362,7 +362,7 @@ void priority_set(TCB* thread)
 {
 	switch(thread->state){
 		case RUNNING:
-			if(thread->priority!=MAX_QUEUES-1)
+			if(thread->priority<MAX_QUEUES-1)
 				thread->priority++;
 			break;
 		case READY:
@@ -375,7 +375,7 @@ void priority_set(TCB* thread)
 				thread->bstate=NONE;
 				thread->priority=MAX_QUEUES-1;
 			}else{
-				if(thread->priority!=0)
+				if(thread->priority>0)
 					thread->priority--;
 			}
 			/* no break */
@@ -386,7 +386,7 @@ void priority_set(TCB* thread)
 			assert(0);  /* It should not be READY or EXITED ! */
 	}
 }
-void boost_queues(){
+void boost_queues(TCB* thread){
 	unsigned int i;
 	rlnode* node;
 	for(i=1; i<MAX_QUEUES; i++)
@@ -419,20 +419,22 @@ void yield()
   int current_ready = 0;
 
   Mutex_Lock(& current->state_spinlock);
-  //*****OUR CODE*****
-
-  if(current->type!=IDLE_THREAD){
-	  priority_set(current);
-	  if(boost_counter >= BOOST_LIMIT){
-	       		boost_counter=0;
-	       		boost_queues();
-	       	}
-	       	else{
-	       		boost_counter++;
-	       	}
-  }
 
   //*****OUR CODE*****
+
+     if(current->type!=IDLE_THREAD){
+   	  priority_set(current);
+   	  if(boost_counter >= BOOST_LIMIT){
+   	       		boost_counter=0;
+   	       		boost_queues(current);
+   	       	}
+   	       	else{
+   	       		boost_counter++;
+   	       	}
+     }
+
+     //*****OUR CODE*****
+
   switch(current->state)
   {
     case RUNNING:
@@ -511,7 +513,8 @@ void gain(int preempt)
     switch(prev->state) 
     {
       case READY:
-        if(prev->type != IDLE_THREAD) sched_queue_add(prev);
+        if(prev->type != IDLE_THREAD)
+        	sched_queue_add(prev);
         break;
       case EXITED:
         prev_exit = 1; /* We cannot release here, because of the mutex */
@@ -531,9 +534,7 @@ void gain(int preempt)
   if(preempt) preempt_on;
 
   /* Set a 1-quantum alarm */
-  //*****OUR CODE*****
-  bios_set_timer(QUANTUM*(current->priority+1));
-  //*****OUR CODE*****
+  bios_set_timer(QUANTUM);
 }
 
 

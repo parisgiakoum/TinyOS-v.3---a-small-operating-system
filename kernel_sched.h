@@ -100,7 +100,9 @@ typedef struct thread_control_block
   Blocked_state bstate; 		/**< The special state of a blocked thread. */
 
   unsigned int priority;		/**< stores the value of each thread's priority*/
-  unsigned int quanta_timer;	/**< stores the value of how many quanta have passed since each thread has called yield() and waits to be scheduled*/
+  unsigned int tid;				/**< stores the value of each thread's id.*/
+
+  PTCB* ptcb;					/**< stores the value of each thread's PTCB field*/
   //*****OUR CODE*****
 
   struct thread_control_block * prev;  /**< previous context */

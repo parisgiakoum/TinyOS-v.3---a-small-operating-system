@@ -92,6 +92,7 @@ void Mutex_Lock(Mutex* lock)
       }
     }
   }
+#undef DEAD_SPINS
 #undef MUTEX_SPINS
 }
 

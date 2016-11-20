@@ -38,7 +38,7 @@ typedef enum pid_state_e {
 typedef struct process_control_block {
   pid_state  pstate;      /**< The pid state for this PCB */
 
-  PCB* parent;            /**< Parent's pcb. */
+  PCB* parent;            /**< Parent's tcb. */
   int exitval;            /**< The exit value */
 
   TCB* main_thread;       /**< The main thread */
@@ -53,10 +53,34 @@ typedef struct process_control_block {
   rlnode exited_node;     /**< Intrusive node for @c exited_list */
   CondVar child_exit;     /**< Condition variable for @c WaitChild */
 
-  FCB* FIDT[MAX_FILEID];  /**< The fileid table of the process */
+  FCB* FIDT[MAX_FILEID];  /**< The file_id table of the process */
 
+  //********OUR CODE*******
+  rlnode thread_list; 		/**< The thread's list of the process */
+  unsigned int thr_counter; /**< The number of threads of each process.*/
+  //********OUR CODE*******
 } PCB;
+//********OUR CODE*******
+/**
+  @brief Process Threads Control Block.
 
+  This structure holds all information pertaining to a processes' threads.
+ */
+typedef struct process_threads_control_block {
+  PCB* owner;            /**< Parent's PCB. */
+  TCB* thread;			/**< The current thread. */
+
+  int exitval;            /**< The exit value */
+  int detached;			/**< The current thread's detached state */
+
+  Task task;       /**< The current thread's function */
+  int argl;               /**< The current thread's argument length */
+  void* args;             /**< The current thread's argument string */
+
+  rlnode node;			/**< The current thread's node.*/
+
+} PTCB;
+//********OUR CODE*******
 
 /**
   @brief Initialize the process table.
