@@ -2,7 +2,7 @@
 #include "tinyos.h"
 #include "kernel_sched.h"
 #include "kernel_proc.h"
-
+#include "assert.h"
 #include "kernel_cc.h"
 
 void start_new_thread()
@@ -15,6 +15,20 @@ void start_new_thread()
 
   exitval = call(argl,args);
   ThreadExit(exitval);
+}
+
+PTCB* lookup_ptcb(Tid_t tid)
+{
+	rlnode* node=&CURPROC->thread_list;
+
+	for(int i=0; i<rlist_len(node);i++){
+		node=node->next;
+		if(tid==(Tid_t) node->ptcb->thread){
+			break;
+		}
+	}
+	PTCB *ptcb=node->ptcb;
+	return ptcb;
 }
 
 /** 
@@ -35,7 +49,9 @@ Tid_t CreateThread(Task task, int argl, void* args)
 		  assert(0);
 	  }
 
-	  newptcb->detached=0;
+	  newptcb->detached=false;
+	  newptcb->exited=false;
+
 
 	  /* Set the current thread's function and arguments */
 	  newptcb->task = task;
@@ -52,9 +68,9 @@ Tid_t CreateThread(Task task, int argl, void* args)
 	   */
 	  if(task != NULL) {
 		  newptcb->thread = spawn_thread(CURPROC, start_new_thread);
+		  newptcb->thread->ptcb=newptcb;
 		  wakeup(newptcb->thread);
 	  }
-
 	  Mutex_Unlock(&kernel_mutex);
 	  return (Tid_t) newptcb->thread;
 }
@@ -72,9 +88,19 @@ Tid_t ThreadSelf()
   */
 int ThreadJoin(Tid_t tid, int* exitval)
 {
-	while(1)
-		yield();
-	return -1;
+	Mutex_Lock(&kernel_mutex);
+	PTCB *ptcb=lookup_ptcb(tid);
+	//if(ptcb==NULL ||ptcb->exited==true || ptcb->detached==true || ptcb->thread==CURTHREAD){
+		//Mutex_Unlock(&kernel_mutex);
+		//return -1;
+	//}
+	while(ptcb->exited==false){
+		Cond_Wait(&kernel_mutex,&CURPROC->cv);
+	}
+	//if(ptcb->exitval!=NULL)
+		//*exitval=ptcb->exitval;
+
+	return 0;
 }
 
 /**
@@ -82,7 +108,17 @@ int ThreadJoin(Tid_t tid, int* exitval)
   */
 int ThreadDetach(Tid_t tid)
 {
-	return -1;
+	Mutex_Lock(&kernel_mutex);
+	PTCB *ptcb=lookup_ptcb(tid);
+	if(ptcb==NULL || ptcb->exited==true){
+		Mutex_Unlock(&kernel_mutex);
+		return -1;
+	}
+
+	ptcb->detached=true;
+	Cond_Broadcast(&CURPROC->cv);
+	Mutex_Unlock(&kernel_mutex);
+	return 0;
 }
 
 /**
@@ -90,11 +126,13 @@ int ThreadDetach(Tid_t tid)
   */
 void ThreadExit(int exitval)
 {
+	Mutex_Lock(&kernel_mutex);
 	CURPROC->thr_counter--;
+	CURTHREAD->ptcb->exited=true;
 	CURTHREAD->ptcb->exitval=exitval;
-	sleep_releasing(EXITED, &kernel_mutex);
+	Cond_Broadcast(&CURPROC->cv);
+	sleep_releasing(EXITED, &kernel_mutex);		/**< kernel_mutex is released in sleep_releasing().*/
 }
-
 
 /**
   @brief Awaken the thread, if it is sleeping.

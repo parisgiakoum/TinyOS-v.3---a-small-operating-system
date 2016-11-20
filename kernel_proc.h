@@ -30,6 +30,11 @@ typedef enum pid_state_e {
   ZOMBIE  /**< The PID is held by a zombie */
 } pid_state;
 
+typedef enum {
+	false,
+	true
+} bool;
+
 /**
   @brief Process Control Block.
 
@@ -38,7 +43,7 @@ typedef enum pid_state_e {
 typedef struct process_control_block {
   pid_state  pstate;      /**< The pid state for this PCB */
 
-  PCB* parent;            /**< Parent's tcb. */
+  PCB* parent;            /**< Parent's pcb. */
   int exitval;            /**< The exit value */
 
   TCB* main_thread;       /**< The main thread */
@@ -56,7 +61,9 @@ typedef struct process_control_block {
   FCB* FIDT[MAX_FILEID];  /**< The file_id table of the process */
 
   //********OUR CODE*******
-  rlnode thread_list; 		/**< The thread's list of the process */
+  CondVar cv;			/**< The current 's condition variable.*/
+
+  rlnode thread_list; 		/**< The precesses' list of the threads. */
   unsigned int thr_counter; /**< The number of threads of each process.*/
   //********OUR CODE*******
 } PCB;
@@ -68,16 +75,17 @@ typedef struct process_control_block {
  */
 typedef struct process_threads_control_block {
   PCB* owner;            /**< Parent's PCB. */
-  TCB* thread;			/**< The current thread. */
+  TCB* thread;			/**< The thread. */
 
   int exitval;            /**< The exit value */
-  int detached;			/**< The current thread's detached state */
+  bool detached;			/**< The thread's detached state */
+  bool exited;			/**< The current thread's exited state */
 
-  Task task;       /**< The current thread's function */
-  int argl;               /**< The current thread's argument length */
-  void* args;             /**< The current thread's argument string */
+  Task task;       /**< The thread's function */
+  int argl;               /**< The thread's argument length */
+  void* args;             /**< The thread's argument string */
 
-  rlnode node;			/**< The current thread's node.*/
+  rlnode node;			/**< The thread's node.*/
 
 } PTCB;
 //********OUR CODE*******

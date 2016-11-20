@@ -393,14 +393,16 @@ void boost_queues(TCB* thread){
 	{
 		node=&SCHED[i];
 		node=node->next;
-		unsigned int j;
-		for(j=0; j<rlist_len(&SCHED[i]); j++)
-		{
-			node->tcb->priority--;
-			node=node->next;
+		if(node!=&SCHED[i]){
+			unsigned int j;
+			for(j=0; j<rlist_len(&SCHED[i]); j++)
+			{
+				node->tcb->priority--;
+				node=node->next;
+			}
+			rlist_push_back(&SCHED[i-1],(SCHED[i].prev));
+			rlist_remove(&SCHED[i]);
 		}
-		rlist_push_back(&SCHED[i-1],&SCHED[i]);
-		rlist_remove(&SCHED[i]);
 	}
 }
 //*****OUR CODE*****
