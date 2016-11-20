@@ -96,10 +96,11 @@ int ThreadJoin(Tid_t tid, int* exitval)
 	//}
 	while(ptcb->exited==false){
 		Cond_Wait(&kernel_mutex,&CURPROC->cv);
+		printf("%d	---		%d",((Tid_t)ptcb->thread),tid);
 	}
 	//if(ptcb->exitval!=NULL)
 		//*exitval=ptcb->exitval;
-
+	Mutex_Unlock(&kernel_mutex);
 	return 0;
 }
 
