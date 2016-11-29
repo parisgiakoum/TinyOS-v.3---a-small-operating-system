@@ -360,6 +360,7 @@ void sleep_releasing(Thread_state state, Mutex* mx)
 //*****OUR CODE*****
 void priority_set(TCB* thread)
 {
+	Mutex_Lock(&sched_spinlock);
 	switch(thread->state){
 		case RUNNING:
 			if(thread->priority<MAX_QUEUES-1)
@@ -385,10 +386,12 @@ void priority_set(TCB* thread)
 			fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
 			assert(0);  /* It should not be READY or EXITED ! */
 	}
+	Mutex_Unlock(&sched_spinlock);
 }
 void boost_queues(TCB* thread){
 	unsigned int i;
 	rlnode* node;
+	Mutex_Lock(&sched_spinlock);
 	for(i=1; i<MAX_QUEUES; i++)
 	{
 		node=&SCHED[i];
@@ -404,6 +407,7 @@ void boost_queues(TCB* thread){
 			rlist_remove(&SCHED[i]);
 		}
 	}
+	Mutex_Unlock(&sched_spinlock);
 }
 //*****OUR CODE*****
 /* This function is the entry point to the scheduler's context switching */
