@@ -53,6 +53,8 @@ typedef uintptr_t Tid_t;
 /** @brief The invalid thread ID */
 #define NOTHREAD ((Tid_t)0)
 
+/** @brief The buffer size (in chars) */
+#define BUF_SIZE 10
 
 /*******************************************
  *      Concurrency control
@@ -503,6 +505,18 @@ typedef struct pipe_s {
 	Fid_t write;		/**< The write end of the pipe */
 } pipe_t;
 
+/**
+	@brief The Pipe Control Block
+*/
+typedef struct pipe_control_block {
+	Fid_t reader;			/**< The read end of the pipe */
+	Fid_t writer;		/**< The write end of the pipe */
+	CondVar wCV;	/**< A Condition Variable for write. */
+	CondVar rCV;	/**< A Condition Variable for write. */
+	char buffer[BUF_SIZE];	/**< A buffer for characters. */
+	char* start;	/**< The pointer to the start of the buffer*/
+	char* end;		/**< The pointer to the end of the buffer*/
+} PipeCB;
 
 /**
 	@brief Construct and return a pipe.
@@ -524,6 +538,7 @@ typedef struct pipe_s {
 */
 int Pipe(pipe_t* pipe);
 
+//TO-DO
 /*******************************************
  *
  * Sockets (local)

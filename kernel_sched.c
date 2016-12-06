@@ -403,7 +403,7 @@ void boost_queues(TCB* thread){
 				node->tcb->priority--;
 				node=node->next;
 			}
-			rlist_push_back(&SCHED[i-1],(SCHED[i].prev));
+			rlist_push_back(&SCHED[i-1],&SCHED[i]);
 			rlist_remove(&SCHED[i]);
 		}
 	}

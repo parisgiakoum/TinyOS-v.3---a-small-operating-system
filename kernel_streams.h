@@ -81,7 +81,7 @@ int FCB_decref(FCB* fcb);
 /** @brief Acquire a number of FCBs and corresponding fids.
 
    Given an array of fids and an array of pointers to FCBs  of
-   size @ num, this function will check is available resources
+   size @ num, this function will check if there are available resources
    in the current process PCB and FCB are available, and if so
    it will fill the two arrays with the appropriate values.
    If not, the state is unchanged (but the array contents
