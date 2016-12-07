@@ -3,13 +3,14 @@
 #include "kernel_cc.h"
 
 
+
 int Pipe(pipe_t* pipe)
 {
-	Fid_t *fid;
-	FCB* fcb;
+	Fid_t fid[2];
+	FCB *fcb[2];
 	Mutex_Lock(&kernel_mutex);
 
-	if(! FCB_reserve(2, fid, &fcb)){	//Reserve 2 FCB's
+	if(! FCB_reserve(2, fid, fcb)){	//Reserve 2 FCB's
 		fid[0] = NOFILE;
 		fid[1] = NOFILE;
 		Mutex_Unlock(&kernel_mutex);
@@ -19,38 +20,46 @@ int Pipe(pipe_t* pipe)
 	pipe->read=fid[0];
 	pipe->write=fid[1];
 
-	PipeCB *pipecb;
-	pipecb->reader=fid[0];
-	pipecb->writer=fid[1];
+	PipeCB pipecb;
+	pipecb.pipe_ptr = pipe;
+	pipecb.fcbr = fcb[0];
+	pipecb.fcbw = fcb[1];
+	pipecb.start = &pipecb.buffer[0];
+	pipecb.end = &pipecb.buffer[0];
 
-	pipecb->start=&pipecb->buffer[0];
-	pipecb->end=&pipecb->buffer[0];
+	file_ops __pipe_read_ops = {
+		.Open = NULL,
+		.Read = pipe_read,
+		.Write = pipe_write,
+		.Close = pipe_close
+	};
+	file_ops __pipe_write_ops = {
+		.Open = NULL,
+		.Read = pipe_read,
+		.Write = pipe_write,
+		.Close = pipe_close
+	};
 
 	// Reader
-	fcb[0].streamobj=pipecb;
-	fcb[0].streamfunc->Open=NULL;
-	fcb[0].streamfunc->Close=Pipe_close();
-	fcb[0].streamfunc->Read=Pipe_read();
-	fcb[0].streamfunc->Write=-1;
+	fcb[0]->streamobj = &pipecb;
+	fcb[0]->streamfunc = &__pipe_read_ops;
 	//Writer
-	fcb[1]->streamobj=pipecb;
-	fcb[1]->streamfunc->Open=NULL;
-	fcb[1]->streamfunc->Close=Pipe_close();
-	fcb[1]->streamfunc->Read=-1;
-	fcb[1]->streamfunc->Write=Pipe_write();
+	fcb[1]->streamobj = &pipecb;
+	fcb[1]->streamfunc = &__pipe_write_ops;
 
 	Mutex_Unlock(&kernel_mutex);
 	return 0;
 }
 //TO-DO
-int (*Pipe_read)(){
+int pipe_read(){
 	return 0;
 }
 
-int (*Pipe_write)(){
+int pipe_write(){
+
 	return 0;
 }
 
-int (*Pipe_close)(){
+int pipe_close(){
 	return 0;
 }

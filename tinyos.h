@@ -3,6 +3,9 @@
 #define __TINYOS_H__
 
 #include <stdint.h>
+#include "util.h"
+
+//#include "kernel_dev.h"
 
 /**
   @file tinyos.h
@@ -509,8 +512,9 @@ typedef struct pipe_s {
 	@brief The Pipe Control Block
 */
 typedef struct pipe_control_block {
-	Fid_t reader;			/**< The read end of the pipe */
-	Fid_t writer;		/**< The write end of the pipe */
+	pipe_t* pipe_ptr; 		/**< A pointer to the pipe's read and write fids */
+	FCB *fcbr;		/**<  A pointer to the FCB of read */
+	FCB *fcbw;		/**<  A pointer to the FCB of wright */
 	CondVar wCV;	/**< A Condition Variable for write. */
 	CondVar rCV;	/**< A Condition Variable for write. */
 	char buffer[BUF_SIZE];	/**< A buffer for characters. */
@@ -537,8 +541,9 @@ typedef struct pipe_control_block {
 		- the available file ids for the process are exhausted.
 */
 int Pipe(pipe_t* pipe);
-
-//TO-DO
+int pipe_write();
+int pipe_read();
+int pipe_close();
 /*******************************************
  *
  * Sockets (local)

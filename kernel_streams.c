@@ -1,6 +1,6 @@
 
 #include "util.h"
-#include "tinyos.h"
+//#include "tinyos.h"
 #include "kernel_cc.h"
 #include "kernel_streams.h"
 #include "kernel_sched.h"
