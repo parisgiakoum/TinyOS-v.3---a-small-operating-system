@@ -2,7 +2,18 @@
 #include "tinyos.h"
 #include "kernel_cc.h"
 
-
+file_ops __pipe_read_ops = {
+		.Open = NULL,
+		.Read = pipe_read,
+		.Write = false_return,
+		.Close = pipe_close
+	};
+	file_ops __pipe_write_ops = {
+		.Open = NULL,
+		.Read = false_return,
+		.Write = pipe_write,
+		.Close = pipe_close
+	};
 
 int Pipe(pipe_t* pipe)
 {
@@ -20,25 +31,15 @@ int Pipe(pipe_t* pipe)
 	pipe->read=fid[0];
 	pipe->write=fid[1];
 
-	PipeCB pipecb;
-	pipecb.pipe_ptr = pipe;
-	pipecb.fcbr = fcb[0];
-	pipecb.fcbw = fcb[1];
-	pipecb.start = &pipecb.buffer[0];
-	pipecb.end = &pipecb.buffer[0];
+	PipeCB* pipecb = xmalloc(sizeof(PipeCB));
+	pipecb->pipe_ptr = pipe;
+	pipecb->fcbr = fcb[0];
+	pipecb->fcbw = fcb[1];
+	pipecb->start = &pipecb.buffer[0];
+	pipecb->end = &pipecb.buffer[0];
 
-	file_ops __pipe_read_ops = {
-		.Open = NULL,
-		.Read = pipe_read,
-		.Write = pipe_write,
-		.Close = pipe_close
-	};
-	file_ops __pipe_write_ops = {
-		.Open = NULL,
-		.Read = pipe_read,
-		.Write = pipe_write,
-		.Close = pipe_close
-	};
+	pipecb->rCV=COND_INIT;
+	pipecb->wCV=COND_INIT;
 
 	// Reader
 	fcb[0]->streamobj = &pipecb;
@@ -51,11 +52,15 @@ int Pipe(pipe_t* pipe)
 	return 0;
 }
 //TO-DO
-int pipe_read(){
+int false_return(void* this, char *buf, unsigned int size){
+	return -1;
+}
+
+int pipe_read(void* this, char *buf, unsigned int size){
 	return 0;
 }
 
-int pipe_write(){
+int pipe_write(void* this, const char *buf, unsigned int size){
 
 	return 0;
 }
