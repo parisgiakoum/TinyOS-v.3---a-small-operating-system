@@ -57,7 +57,7 @@ typedef uintptr_t Tid_t;
 #define NOTHREAD ((Tid_t)0)
 
 /** @brief The buffer size (in chars) */
-#define BUF_SIZE 10
+#define BUF_SIZE 8000
 
 /*******************************************
  *      Concurrency control
@@ -518,8 +518,8 @@ typedef struct pipe_control_block {
 	CondVar wCV;	/**< A Condition Variable for write. */
 	CondVar rCV;	/**< A Condition Variable for write. */
 	char buffer[BUF_SIZE];	/**< A buffer for characters. */
-	char* start;	/**< The pointer to the start of the buffer*/
-	char* end;		/**< The pointer to the end of the buffer*/
+	int start;	/**< The pointer to the start of the buffer*/
+	int end;		/**< The pointer to the end of the buffer*/
 } PipeCB;
 
 /**
@@ -541,9 +541,11 @@ typedef struct pipe_control_block {
 		- the available file ids for the process are exhausted.
 */
 int Pipe(pipe_t* pipe);
-int pipe_write();
-int pipe_read();
-int pipe_close();
+int pipe_write(void* this, const char *buf, unsigned int size);
+int pipe_read(void* this, char *buf, unsigned int size);
+int pipe_close(void* this);
+int false_return_write(void* this, const char *buf, unsigned int size);
+int false_return_read(void* this, char *buf, unsigned int size);
 /*******************************************
  *
  * Sockets (local)

@@ -70,28 +70,28 @@ int FCB_reserve(size_t num, Fid_t *fid, FCB** fcb)
 
     /* Find distinct fids */
     for(i=0; i<num; i++) {
-	while(f<MAX_FILEID && cur->FIDT[f]!=NULL)
-	    f++;
-	if(f==MAX_FILEID) break;
-	fid[i] = f; f++;
+		while(f<MAX_FILEID && cur->FIDT[f]!=NULL)
+			f++;
+		if(f==MAX_FILEID) break;
+		fid[i] = f; f++;
     }
     if(i<num) return 0;
     /* Allocate FCBs */
     for(i=0;i<num;i++)
-	if((fcb[i] = acquire_FCB()) == NULL)
+    	if((fcb[i] = acquire_FCB()) == NULL)
 	    break;
     if(i<num) {
 	/* Roll back */
-	while(i>0) {
-	    release_FCB(fcb[i-1]);
-	    i--;
-	}
-	return 0;
+		while(i>0) {
+			release_FCB(fcb[i-1]);
+			i--;
+		}
+		return 0;
     }
     /* Found all */
     for(i=0;i<num;i++) {
-	cur->FIDT[fid[i]]=fcb[i];
-	FCB_incref(fcb[i]);
+    	cur->FIDT[fid[i]]=fcb[i];
+    	FCB_incref(fcb[i]);
     }
     return 1;
 }

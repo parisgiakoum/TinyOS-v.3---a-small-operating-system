@@ -870,6 +870,7 @@ BOOT_TEST(test_pipe_open,
 
 	for(int i=0;i<3;i++) {
 		ASSERT((rc=Write(pipe.write, "Hello world", 12))==12);
+
 	}
 	char buffer[12] = { [0] = 0 };
 	for(int i=0;i<3;i++) {

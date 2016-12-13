@@ -367,8 +367,9 @@ void priority_set(TCB* thread)
 				thread->priority++;
 			break;
 		case READY:
-			fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
-			assert(0);
+			////// La8os prwtou merous: mporeis apo read->running->ready
+			//fprintf(stderr, "BAD STATE for current thread %p in priority set: %d\n", thread, thread->state);
+			//assert(0);
 			/* no break */
 		case STOPPED:
 			if(thread->bstate==DEADLOCKED)
