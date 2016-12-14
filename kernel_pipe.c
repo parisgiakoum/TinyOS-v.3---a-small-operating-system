@@ -26,7 +26,7 @@ int Pipe(pipe_t* pipe)
 		fid[0] = NOFILE;
 		fid[1] = NOFILE;
 		Mutex_Unlock(&kernel_mutex);
-		fprintf(stderr, "Could not reserve FCB");
+		fprintf(stderr, "Could not reserve FCB\n");
 		return -1;
 	}
 	pipe->read = fid[0];
@@ -129,6 +129,8 @@ int pipe_write(void* this, const char *buf, unsigned int size){
 int pipe_close(void* this){
 
 	PipeCB* pipe = (PipeCB*)this;
+
+	Mutex_Lock(&kernel_mutex);
 	if(pipe->fcbw->refcount==0 && pipe->fcbr->refcount==0)
 		free(pipe);
 	Mutex_Unlock(&kernel_mutex);

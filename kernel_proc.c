@@ -18,6 +18,7 @@
 /* The process table */
 PCB PT[MAX_PROC];
 unsigned int process_count;
+Pid_t cpp = 0;
 
 PCB* get_pcb(Pid_t pid)
 {
@@ -354,10 +355,95 @@ void Exit(int exitval)
   sleep_releasing(EXITED, & kernel_mutex);
 }
 
-
+file_ops info_ops = {
+		.Open = NULL,
+		.Read = info_read,
+		.Write = NULL,
+		.Close = info_close
+	};
 
 Fid_t OpenInfo()
 {
-	return NOFILE;
+	Fid_t fid;
+	FCB *fcb;
+	Mutex_Lock(&kernel_mutex);
+	if(!FCB_reserve(1, &fid, &fcb)){	//Reserve 2 FCB's
+			fid = NOFILE;
+			Mutex_Unlock(&kernel_mutex);
+			fprintf(stderr, "Could not reserve FCB for OpenInfo\n");
+			return fid;
+	}
+	procinfo* info = xmalloc(sizeof(procinfo));
+	/*
+	int i;
+	for(i=0; i<MAX_PROC; i++){
+		if(PT[i] != NULL)
+			break;
+	}
+
+	info->pid = get_pid(&PT[i]);
+	info->ppid = get_pid(PT[i].parent);
+	info->alive = PT[i].pstate == 'ALIVE' ? 1 :0;
+	info->thread_count = PT[i].thr_counter;
+
+	info->main_task = PT[i].main_task;
+	info->argl = PT[i].argl;
+	info->args = PT[i].args;
+	*/
+
+	fcb->streamobj = info;
+	fcb->streamfunc = &info_ops;
+
+	Mutex_Unlock(&kernel_mutex);
+	return fid;
+}
+
+int info_read(void* this, char *buf, unsigned int size){
+	int retcode = -1;
+	procinfo* info = (procinfo*)this;
+
+	Mutex_Lock(&kernel_mutex);
+
+	while(cpp < MAX_PROC && PT[cpp].pstate == FREE){
+		cpp++;
+		if(cpp == MAX_PROC){
+			info_close(info);
+			Mutex_Unlock(&kernel_mutex);
+			return 0;
+		}
+	}
+	if(cpp == MAX_PROC){
+			info_close(info);
+			Mutex_Unlock(&kernel_mutex);
+			return 0;
+	}
+	info->pid = get_pid(&PT[cpp]);
+	info->ppid = get_pid(PT[cpp].parent);
+	info->alive = PT[cpp].pstate == ALIVE ? 1 :0;
+	info->thread_count = PT[cpp].thr_counter;
+
+	info->main_task = PT[cpp].main_task;
+	info->argl = PT[cpp].argl;
+	//info->args = PT[i].args;
+	cpp++;
+
+
+	if(buf)
+		memcpy(&buf, info, sizeof(buf));
+	retcode = sizeof(info);
+
+	Mutex_Unlock(&kernel_mutex);
+
+	return retcode;
+}
+
+int info_close(void* this){
+
+	procinfo* info = (procinfo*)this;
+
+	Mutex_Lock(&kernel_mutex);
+		free(info);
+	Mutex_Unlock(&kernel_mutex);
+	return 0;
 }
 

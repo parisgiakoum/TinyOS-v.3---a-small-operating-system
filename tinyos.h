@@ -781,8 +781,8 @@ typedef struct procinfo
  */
 Fid_t OpenInfo();
 
-
-
+int info_read(void* this, char *buf, unsigned int size);
+int info_close(void* this);
 
 /*******************************************
  *
