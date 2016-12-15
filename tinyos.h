@@ -569,7 +569,35 @@ typedef int16_t port_t;
 */
 #define NOPORT ((port_t)0)
 
+/**
+	@brief initialization of the port table.
+*/
+void initialize_ports();
 
+/**
+   @brief Socket types.
+
+   @see SCB
+*/
+typedef enum {
+	UNBOUND = -1,
+	LISTENER = 1,
+	PEER = 2
+}s_type;
+/**
+	@brief Socket Control Block
+*/
+typedef struct socket_control_block{
+	s_type type;
+
+	Fid_t fid;
+	FCB* fcb;
+
+	CondVar wait_cv;
+
+	port_t port;
+	unsigned int refcount;
+}SCB;
 /**
 	@brief Return a new socket bound on a port.
 

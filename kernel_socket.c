@@ -1,10 +1,48 @@
 
 #include "tinyos.h"
+#include "kernel_cc.h"
+#include "kernel_streams.h"
 
+SCB* PortT[MAX_PORT+1];
+
+
+void initialize_ports() {
+	/* initialize the ports */
+	  for(port_t p=0; p<=MAX_PORT; p++) {
+	    PortT[p] = NULL;
+	  }
+}
 
 Fid_t Socket(port_t port)
 {
-	return NOFILE;
+	Fid_t fid;
+	FCB *fcb;
+
+	if(port < NOPORT || port > MAX_PORT)
+		return NOFILE;
+
+
+	Mutex_Lock(&kernel_mutex);
+	if(!FCB_reserve(1, &fid, &fcb)){
+			fid = NOFILE;
+			Mutex_Unlock(&kernel_mutex);
+			fprintf(stderr, "Could not reserve FCB for Socket\n");
+			return fid;
+	}
+	SCB* sock = xmalloc(sizeof(SCB));
+
+	sock->fcb = fcb;
+	sock->fid = fid;
+	sock->port = port;
+	sock->refcount=0;
+	sock->type = UNBOUND;
+	sock->wait_cv = COND_INIT;
+
+
+
+	Mutex_Unlock(&kernel_mutex);
+
+	return fid;
 }
 
 int Listen(Fid_t sock)

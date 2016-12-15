@@ -374,22 +374,6 @@ Fid_t OpenInfo()
 			return fid;
 	}
 	procinfo* info = xmalloc(sizeof(procinfo));
-	/*
-	int i;
-	for(i=0; i<MAX_PROC; i++){
-		if(PT[i] != NULL)
-			break;
-	}
-
-	info->pid = get_pid(&PT[i]);
-	info->ppid = get_pid(PT[i].parent);
-	info->alive = PT[i].pstate == 'ALIVE' ? 1 :0;
-	info->thread_count = PT[i].thr_counter;
-
-	info->main_task = PT[i].main_task;
-	info->argl = PT[i].argl;
-	info->args = PT[i].args;
-	*/
 
 	fcb->streamobj = info;
 	fcb->streamfunc = &info_ops;
