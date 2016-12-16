@@ -130,9 +130,7 @@ int pipe_close(void* this){
 
 	PipeCB* pipe = (PipeCB*)this;
 
-	Mutex_Lock(&kernel_mutex);
 	if(pipe->fcbw->refcount==0 && pipe->fcbr->refcount==0)
 		free(pipe);
-	Mutex_Unlock(&kernel_mutex);
 	return 0;
 }

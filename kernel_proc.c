@@ -356,7 +356,7 @@ void Exit(int exitval)
 }
 
 file_ops info_ops = {
-		.Open = NULL,
+		.Open = NULL, //return -1
 		.Read = info_read,
 		.Write = NULL,
 		.Close = info_close
@@ -391,13 +391,13 @@ int info_read(void* this, char *buf, unsigned int size){
 	while(cpp < MAX_PROC && PT[cpp].pstate == FREE){
 		cpp++;
 		if(cpp == MAX_PROC){
-			info_close(info);
+			//info_close(info);
 			Mutex_Unlock(&kernel_mutex);
 			return 0;
 		}
 	}
 	if(cpp == MAX_PROC){
-			info_close(info);
+			//info_close(info);
 			Mutex_Unlock(&kernel_mutex);
 			return 0;
 	}
@@ -413,8 +413,8 @@ int info_read(void* this, char *buf, unsigned int size){
 
 
 	if(buf)
-		memcpy(&buf, info, sizeof(buf));
-	retcode = sizeof(info);
+		memcpy(buf, info, size);
+	retcode = size;
 
 	Mutex_Unlock(&kernel_mutex);
 
@@ -425,9 +425,7 @@ int info_close(void* this){
 
 	procinfo* info = (procinfo*)this;
 
-	Mutex_Lock(&kernel_mutex);
 		free(info);
-	Mutex_Unlock(&kernel_mutex);
 	return 0;
 }
 

@@ -12,7 +12,15 @@ void initialize_ports() {
 	    PortT[p] = NULL;
 	  }
 }
+/*
+int socket_close(void *this){
+	return 0;
+}
 
+file_ops sock_ops = {
+		.Close = socket_close
+};
+*/
 Fid_t Socket(port_t port)
 {
 	Fid_t fid;
@@ -26,18 +34,18 @@ Fid_t Socket(port_t port)
 	if(!FCB_reserve(1, &fid, &fcb)){
 			fid = NOFILE;
 			Mutex_Unlock(&kernel_mutex);
-			fprintf(stderr, "Could not reserve FCB for Socket\n");
+			//fprintf(stderr, "Could not reserve FCB for Socket\n");
 			return fid;
 	}
 	SCB* sock = xmalloc(sizeof(SCB));
-
+//	fcb->streamfunc = &sock_ops;
+//	fcb->streamobj = sock;
 	sock->fcb = fcb;
 	sock->fid = fid;
 	sock->port = port;
 	sock->refcount=0;
 	sock->type = UNBOUND;
 	sock->wait_cv = COND_INIT;
-
 
 
 	Mutex_Unlock(&kernel_mutex);
