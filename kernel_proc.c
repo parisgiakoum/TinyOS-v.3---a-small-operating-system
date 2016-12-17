@@ -356,9 +356,7 @@ void Exit(int exitval)
 }
 
 file_ops info_ops = {
-		.Open = NULL, //return -1
 		.Read = info_read,
-		.Write = NULL,
 		.Close = info_close
 	};
 
@@ -377,6 +375,8 @@ Fid_t OpenInfo()
 
 	fcb->streamobj = info;
 	fcb->streamfunc = &info_ops;
+
+	cpp=0;	//Start the counter with value 0
 
 	Mutex_Unlock(&kernel_mutex);
 	return fid;

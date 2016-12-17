@@ -574,6 +574,9 @@ typedef int16_t port_t;
 */
 void initialize_ports();
 
+/*************OUR CODE**************/
+
+
 /**
    @brief Socket types.
 
@@ -584,6 +587,27 @@ typedef enum {
 	LISTENER = 1,
 	PEER = 2
 }s_type;
+
+/**
+	@brief Listener's Control Block
+*/
+typedef struct listener_control_block{
+	rlnode requests;
+
+	CondVar wait_cv;
+}LCB;
+
+/**
+	@brief Peer's Control Block
+*/
+typedef struct peer_control_block{
+	Fid_t s3;
+	Fid_t s2;
+
+	PipeCB* inbound;
+	PipeCB* outbound;
+}PeerCB;
+
 /**
 	@brief Socket Control Block
 */
@@ -592,12 +616,18 @@ typedef struct socket_control_block{
 
 	Fid_t fid;
 	FCB* fcb;
-
-	CondVar wait_cv;
+	LCB* lcb;
+	PeerCB* peercb;
 
 	port_t port;
 	unsigned int refcount;
 }SCB;
+
+SCB* get_scb(Fid_t sock);
+
+int socket_close(void* this);
+/*************OUR CODE**************/
+
 /**
 	@brief Return a new socket bound on a port.
 
