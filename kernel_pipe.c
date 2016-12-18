@@ -68,19 +68,21 @@ int pipe_read(void* this, char *buf, unsigned int size){
 	if(pipe->fcbr != NULL){
 		int i;
 		for(i=0; i<size; i++){
-
-			while(pipe->start==pipe->end){
-				if(pipe->fcbw->refcount == 0){
-					Mutex_Unlock(&kernel_mutex);
-					return retcode = i;
+//			if(pipe->fcbw->refcount == 0){
+//
+//			}
+				while(pipe->start==pipe->end){
+					if(pipe->fcbw->refcount == 0){
+						Mutex_Unlock(&kernel_mutex);
+						return retcode = i;
+					}
+					Cond_Signal(&pipe->wCV);
+					Cond_Wait(&kernel_mutex,&pipe->rCV);
 				}
-				Cond_Signal(&pipe->wCV);
-				Cond_Wait(&kernel_mutex,&pipe->rCV);
-//				Mutex_Unlock(&kernel_mutex);
-			}
 
-			buf[i]=pipe->buffer[pipe->start];
-			pipe->start = (pipe->start+1)%BUF_SIZE;
+				buf[i]=pipe->buffer[pipe->start];
+				pipe->start = (pipe->start+1)%BUF_SIZE;
+
 		}
 		retcode = i;
 	}
@@ -117,8 +119,6 @@ int pipe_write(void* this, const char *buf, unsigned int size){
 		}
 		retcode = i;
 	}
-
-
 	Cond_Signal(&pipe->rCV);
 
 	Mutex_Unlock(&kernel_mutex);
@@ -127,10 +127,13 @@ int pipe_write(void* this, const char *buf, unsigned int size){
 }
 
 int pipe_close(void* this){
-
+	int retcode = -1;
 	PipeCB* pipe = (PipeCB*)this;
 
-	if(pipe->fcbw->refcount==0 && pipe->fcbr->refcount==0)
+	if(pipe->fcbw->refcount==0 && pipe->fcbr->refcount==0){
+		retcode = 0;
 		free(pipe);
-	return 0;
+	}
+
+	return retcode;
 }

@@ -514,7 +514,7 @@ typedef struct pipe_s {
 typedef struct pipe_control_block {
 	pipe_t* pipe_ptr; 		/**< A pointer to the pipe's read and write fids */
 	FCB *fcbr;		/**<  A pointer to the FCB of read */
-	FCB *fcbw;		/**<  A pointer to the FCB of wright */
+	FCB *fcbw;		/**<  A pointer to the FCB of write */
 	CondVar wCV;	/**< A Condition Variable for write. */
 	CondVar rCV;	/**< A Condition Variable for write. */
 	char buffer[BUF_SIZE];	/**< A buffer for characters. */
@@ -602,7 +602,6 @@ typedef struct listener_control_block{
 	@brief Peer's Control Block
 */
 typedef struct peer_control_block{
-
 	pipe_t pipes;
 
 	CondVar cv;
@@ -623,15 +622,19 @@ typedef struct socket_control_block{
 	unsigned int refcount;
 }SCB;
 
+typedef struct message_passing{
+	SCB* sclient;
+
+	int result;
+}msg_packet;
+
 SCB* get_scb(Fid_t sock);
+
+int socket_read(void* this, char *buf, unsigned int size);
+int socket_write(void* this, const char *buf, unsigned int size);
 
 int socket_close(void* this);
 
-typedef struct message_passing{
-	SCB* s3;
-
-	int result;
-}msg;
 /*************OUR CODE**************/
 
 /**

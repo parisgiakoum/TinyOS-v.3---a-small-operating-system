@@ -15,7 +15,7 @@ void initialize_ports() {
 
 SCB* get_scb(Fid_t sock)
 {
-	if (sock==NOFILE) return NULL;
+	if (sock==NOFILE) return NULL;	//?????
 
 	SCB* socket;
 	FCB* sock_fcb = get_fcb(sock);
@@ -27,6 +27,9 @@ SCB* get_scb(Fid_t sock)
 }
 
 file_ops sock_ops = {
+		.Open = NULL,
+		.Read = socket_read,
+		.Write = socket_write,
 		.Close = socket_close
 };
 
@@ -112,47 +115,54 @@ Fid_t Accept(Fid_t lsock)
 	}
 
 	while(is_rlist_empty(&listener->lcb->requests)){
+		if(lsock == NOFILE)
+			return NOFILE;
 		Cond_Wait(&kernel_mutex, &listener->lcb->wait_cv);
 	}
 
 	rlnode* s3_node = rlist_pop_front(&listener->lcb->requests);
 
-	msg* mes = (msg*)s3_node->obj;
-	SCB* s3 = mes.s3;
+	msg_packet* msg = (msg_packet*)s3_node->obj;
+	SCB* s3 = msg->sclient;
 
-	s3.type = PEER;
+	s3->type = PEER;
 
-	SCB* s2;
-	s2->peercb->cv = COND_INIT;
-	s2->port = listener->port;
+	SCB* s2;	//Host
+	s2 = get_scb(Socket(listener->port));
 	s2->type = PEER;
+
+	PeerCB* peercb = xmalloc(sizeof(PeerCB));
 
 	pipe_t* pipe_in;
 	pipe_t* pipe_out;
 
 	//Error checking
-	Pipe(pipe_in);
-	Pipe(pipe_out);
+	if(Pipe(pipe_in) == -1 || Pipe(pipe_out) == -1)	return NOFILE;
+
+	s2->peercb = peercb;
+	s2->peercb->cv = COND_INIT;
+
+
 
 	s2->peercb->pipes.read = pipe_in->read;
 	s2->peercb->pipes.write = pipe_out->write;
 
-	s3->peercb->pipes.read = pipe_in->write;
-	s3->peercb->pipes.write = pipe_out->read;
+	s3->peercb->pipes.read = pipe_out->read;
+	s3->peercb->pipes.write = pipe_in->write;
 
-	mes->result = 0;
+	msg->result = 0;
 
+	Cond_Broadcast(&s3->peercb->cv);
 
+	Mutex_Unlock(&kernel_mutex);
 
-	return NOFILE;
+	return s2->fid;
 }
 
 
 int Connect(Fid_t sock, port_t port, timeout_t timeout)
 {
-
 	SCB* scb3;
-	Fid_t s2;
 
 	Mutex_Lock(&kernel_mutex);
 	scb3 = get_scb(sock);
@@ -162,9 +172,9 @@ int Connect(Fid_t sock, port_t port, timeout_t timeout)
 		return -1;
 	}
 	//MSG
-	msg msg;
-	msg.s3 = scb3;
-	msg.result = -1;
+	msg_packet* msg;
+	msg->sclient = scb3;
+	msg->result = -1;
 
 	rlnode node;
 	rlnode_init(&node, &msg);
@@ -182,20 +192,56 @@ int Connect(Fid_t sock, port_t port, timeout_t timeout)
 
 	Cond_Wait(&kernel_mutex, &scb3->peercb->cv);
 
-	if(msg.result == -1)
+	if(msg->result == -1)
 		fprintf(stderr, "\n\nMessage = -1. Could not connect.\n\n");
 
 
 	Mutex_Unlock(&kernel_mutex);
 
 
-	return msg.result;
+	return msg->result;
 }
-
 
 int ShutDown(Fid_t sock, shutdown_mode how)
 {
+	SCB* scb;
+	int retcode = -1;
 	return -1;
+
+	Mutex_Lock(&kernel_mutex);
+	scb = get_scb(sock);
+	if(how == SHUTDOWN_READ){
+
+	}else if(how == SHUTDOWN_WRITE){
+
+	}else if (how == SHUTDOWN_BOTH) {
+
+	}
+
+	Mutex_Unlock(&kernel_mutex);
+}
+
+int socket_read(void* this, char *buf, unsigned int size){
+	int retcode = -1;
+	SCB* sock = (SCB*)this;
+
+	Mutex_Lock(&kernel_mutex);
+	retcode = Read(sock->peercb->pipes.read ,buf, size);
+
+	Mutex_Unlock(&kernel_mutex);
+	return retcode;
+}
+
+int socket_write(void* this, const
+		char *buf, unsigned int size){
+	int retcode = -1;
+	SCB* sock = (SCB*)this;
+
+	Mutex_Lock(&kernel_mutex);
+	retcode = Write(sock->peercb->pipes.write ,buf, size);
+
+	Mutex_Unlock(&kernel_mutex);
+	return retcode;
 }
 
 int socket_close(void *this)
