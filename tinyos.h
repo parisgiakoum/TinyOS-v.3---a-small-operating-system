@@ -591,6 +591,7 @@ typedef enum {
 /**
 	@brief Listener's Control Block
 */
+
 typedef struct listener_control_block{
 	rlnode requests;
 
@@ -601,11 +602,10 @@ typedef struct listener_control_block{
 	@brief Peer's Control Block
 */
 typedef struct peer_control_block{
-	Fid_t s3;
-	Fid_t s2;
 
-	PipeCB* inbound;
-	PipeCB* outbound;
+	pipe_t pipes;
+
+	CondVar cv;
 }PeerCB;
 
 /**
@@ -626,6 +626,12 @@ typedef struct socket_control_block{
 SCB* get_scb(Fid_t sock);
 
 int socket_close(void* this);
+
+typedef struct message_passing{
+	SCB* s3;
+
+	int result;
+}msg;
 /*************OUR CODE**************/
 
 /**

@@ -50,6 +50,8 @@ Fid_t Socket(port_t port)
 	fcb->streamfunc = &sock_ops;
 	fcb->streamobj = sock;
 
+	sock->lcb = NULL;
+	sock->peercb = NULL;
 	sock->fcb = fcb;
 	sock->fid = fid;
 	sock->port = port;
@@ -78,6 +80,7 @@ int Listen(Fid_t sock)
 	scb->type = LISTENER;
 
 	rlnode_new(&lcb->requests);
+
 	lcb->wait_cv = COND_INIT;
 	scb->lcb = lcb;
 
@@ -93,6 +96,53 @@ int Listen(Fid_t sock)
 
 Fid_t Accept(Fid_t lsock)
 {
+	SCB* listener;
+
+	Mutex_Lock(&kernel_mutex);
+	if(lsock <0 || lsock > MAX_FILEID){
+		Mutex_Unlock(&kernel_mutex);
+		return -1;
+	}
+
+	listener = get_scb(lsock);
+
+	if(listener == NULL || listener->type != LISTENER) {
+			Mutex_Unlock(&kernel_mutex);
+			return -1;
+	}
+
+	while(is_rlist_empty(&listener->lcb->requests)){
+		Cond_Wait(&kernel_mutex, &listener->lcb->wait_cv);
+	}
+
+	rlnode* s3_node = rlist_pop_front(&listener->lcb->requests);
+
+	msg* mes = (msg*)s3_node->obj;
+	SCB* s3 = mes.s3;
+
+	s3.type = PEER;
+
+	SCB* s2;
+	s2->peercb->cv = COND_INIT;
+	s2->port = listener->port;
+	s2->type = PEER;
+
+	pipe_t* pipe_in;
+	pipe_t* pipe_out;
+
+	//Error checking
+	Pipe(pipe_in);
+	Pipe(pipe_out);
+
+	s2->peercb->pipes.read = pipe_in->read;
+	s2->peercb->pipes.write = pipe_out->write;
+
+	s3->peercb->pipes.read = pipe_in->write;
+	s3->peercb->pipes.write = pipe_out->read;
+
+	mes->result = 0;
+
+
 
 	return NOFILE;
 }
@@ -111,38 +161,35 @@ int Connect(Fid_t sock, port_t port, timeout_t timeout)
 		Mutex_Unlock(&kernel_mutex);
 		return -1;
 	}
+	//MSG
+	msg msg;
+	msg.s3 = scb3;
+	msg.result = -1;
 
-	while(1){
-		Cond_Signal(&PortT[port]->lcb->wait_cv);
-		s2 = Accept(&PortT[port]->fid);
-		if(s2 == NOFILE) {
-			//Mutex_Unlock(&kernel_mutex);
-			//return -1;
-		}else{
-			scb3->peercb->s2 = s2;
-			scb3->peercb->s3 = sock;
-			scb3->type = PEER;
-			// Stin Accept S2 = PEER;
-			SCB* scb2 = get_scb(s2);
-			scb2->peercb->s3 = sock;
-			scb2->peercb->s2 = s2;
+	rlnode node;
+	rlnode_init(&node, &msg);
 
-			pipe_t pipe;
-			if(!Pipe(&pipe)){
+	PeerCB* peer;
+	peer = (PeerCB*) xmalloc(sizeof(PeerCB));
+	peer->cv = COND_INIT;
 
-			}else{
-				Mutex_Unlock(&kernel_mutex);
-				return -1;
-			}
+	scb3->peercb = peer;
 
-			Mutex_Unlock(&kernel_mutex);
-			return 0;
-		}
-	}
+	//Insert to the listeners list
+	rlist_push_back(&PortT[port]->lcb->requests, &node);
+
+	Cond_Signal(&PortT[port]->lcb->wait_cv);
+
+	Cond_Wait(&kernel_mutex, &scb3->peercb->cv);
+
+	if(msg.result == -1)
+		fprintf(stderr, "\n\nMessage = -1. Could not connect.\n\n");
+
+
 	Mutex_Unlock(&kernel_mutex);
 
 
-	return 0;
+	return msg.result;
 }
 
 
