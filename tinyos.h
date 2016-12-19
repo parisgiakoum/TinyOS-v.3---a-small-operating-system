@@ -634,6 +634,8 @@ int socket_read(void* this, char *buf, unsigned int size);
 int socket_write(void* this, const char *buf, unsigned int size);
 
 int socket_close(void* this);
+int listener_close(void *this);
+int peer_close(void *this);
 
 /*************OUR CODE**************/
 
@@ -781,6 +783,7 @@ typedef enum {
        - the file id @c sock is not legal (a connected socket stream).
 */
 int ShutDown(Fid_t sock, shutdown_mode how);
+
 
 
 
