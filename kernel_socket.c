@@ -172,8 +172,6 @@ Fid_t Accept(Fid_t lsock)
 	s2->peercb = peercb;
 	s2->peercb->cv = COND_INIT;
 
-
-
 	s2->peercb->pipes.read = pipe_in->read;
 	s2->peercb->pipes.write = pipe_out->write;
 
@@ -276,9 +274,7 @@ int ShutDown(Fid_t sock, shutdown_mode how)
 int socket_read(void* this, char *buf, unsigned int size){
 	int retcode = -1;
 	SCB* sock = (SCB*)this;
-
 	retcode = Read(sock->peercb->pipes.read ,buf, size);
-
 	return retcode;
 }
 

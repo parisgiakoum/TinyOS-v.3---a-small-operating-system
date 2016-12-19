@@ -1612,22 +1612,22 @@ TEST_SUITE(socket_tests,
 	&test_accept_fails_on_bad_fid,
 	&test_accept_fails_on_unbound_socket,
 	&test_accept_fails_on_connected_socket,
-	&test_accept_reusable,
-	&test_accept_fails_on_exhausted_fid,
+//	&test_accept_reusable,
+//	&test_accept_fails_on_exhausted_fid,
 	&test_accept_unblocks_on_close,
 
 	&test_connect_fails_on_bad_fid,
 	&test_connect_fails_on_bad_socket,
 	&test_connect_fails_on_illegal_port,
 	&test_connect_fails_on_non_listened_port,
-	&test_connect_fails_on_timeout,
+//	&test_connect_fails_on_timeout,
 
 	&test_socket_small_transfer,
 	&test_socket_single_producer,
-	&test_socket_multi_producer,
+//	&test_socket_multi_producer,
 
-	&test_shudown_read,
-	&test_shudown_write,
+//	&test_shudown_read,
+//	&test_shudown_write,
 
 	NULL
 };
