@@ -113,6 +113,7 @@ Fid_t Accept(Fid_t lsock)
 	Mutex_Lock(&kernel_mutex);
 	if(lsock <0 || lsock > MAX_FILEID){
 		Mutex_Unlock(&kernel_mutex);
+		fprintf(stderr, "\nBAD LISTENER SOCKET\n");
 		return -1;
 	}
 
@@ -120,12 +121,14 @@ Fid_t Accept(Fid_t lsock)
 
 	if(listener == NULL || listener->type != LISTENER) {
 			Mutex_Unlock(&kernel_mutex);
+			fprintf(stderr, "\nBAD LISTENER \n");
 			return -1;
 	}
 
 	while(is_rlist_empty(&listener->lcb->requests)){
 		if(lsock == NOFILE){
 			Mutex_Unlock(&kernel_mutex);
+			fprintf(stderr, "\nBAD LISTENER SOCKET WHILE WAITING\n");
 			return NOFILE;
 		}
 		Cond_Wait(&kernel_mutex, &listener->lcb->wait_cv);
@@ -155,9 +158,14 @@ Fid_t Accept(Fid_t lsock)
 
 	//Error checking
 	Mutex_Unlock(&kernel_mutex);
-	if(Pipe(pipe_in) == -1 || Pipe(pipe_out) == -1){
+	if(Pipe(pipe_in) == -1){
 		Cond_Broadcast(&s3->peercb->cv);
-
+		fprintf(stderr, "\nCOULD NOT RESERVE PIPE(pipe_in) IN ACCEPT\n");
+		return NOFILE;
+	}
+	if(Pipe(pipe_out) == -1){
+		Cond_Broadcast(&s3->peercb->cv);
+		fprintf(stderr, "\nCOULD NOT RESERVE PIPE(pipe_out) IN ACCEPT\n");
 		return NOFILE;
 	}
 	Mutex_Lock(&kernel_mutex);
@@ -187,9 +195,14 @@ int Connect(Fid_t sock, port_t port, timeout_t timeout)
 	SCB* scb3;
 
 	Mutex_Lock(&kernel_mutex);
+	if(sock <0 || sock > MAX_FILEID){
+		Mutex_Unlock(&kernel_mutex);
+		fprintf(stderr, "\nBAD SOCKET\n");
+		return -1;
+		}
 	scb3 = get_scb(sock);
 
-	if(scb3 == NULL || port <= NOPORT || port > MAX_PORT || PortT[port] == NULL) {
+	if(scb3 == NULL || scb3->type != UNBOUND || port <= NOPORT || port > MAX_PORT || PortT[port] == NULL) {
 		Mutex_Unlock(&kernel_mutex);
 		return -1;
 	}
@@ -264,10 +277,8 @@ int socket_read(void* this, char *buf, unsigned int size){
 	int retcode = -1;
 	SCB* sock = (SCB*)this;
 
-	Mutex_Lock(&kernel_mutex);
 	retcode = Read(sock->peercb->pipes.read ,buf, size);
 
-	Mutex_Unlock(&kernel_mutex);
 	return retcode;
 }
 
@@ -275,10 +286,8 @@ int socket_write(void* this, const char *buf, unsigned int size){
 	int retcode = -1;
 	SCB* sock = (SCB*)this;
 
-	Mutex_Lock(&kernel_mutex);
 	retcode = Write(sock->peercb->pipes.write ,buf, size);
 
-	Mutex_Unlock(&kernel_mutex);
 	return retcode;
 }
 
