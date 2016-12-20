@@ -289,7 +289,6 @@ int socket_write(void* this, const char *buf, unsigned int size){
 
 int socket_close(void *this)
 {
-/* FIX CLOSE */
 
 	SCB* scb = (SCB *)this;
 
@@ -303,8 +302,6 @@ int socket_close(void *this)
 	return 0;
 }
 int listener_close(void *this){
-/* FIX CLOSE */
-
 	SCB* scb = (SCB *)this;
 
 	if (PortT[scb->port] != NULL) {
@@ -312,13 +309,12 @@ int listener_close(void *this){
 		scb->type = UNBOUND;
 
 		free(scb->lcb);
-		//free(scb);
+		free(scb);
 	}
 
 	return 0;
 }
 int peer_close(void *this){
-/* FIX CLOSE */
 
 	SCB* scb = (SCB *)this;
 
@@ -327,7 +323,7 @@ int peer_close(void *this){
 		scb->type = UNBOUND;
 
 		free(scb->peercb);
-		//free(scb);
+		free(scb);
 	}
 
 	return 0;

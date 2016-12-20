@@ -145,8 +145,10 @@ int Read(Fid_t fd, char *buf, unsigned int size)
 
     /* make sure that the stream will not be closed (by another thread) 
        while we are using it! */
+//    fprintf(stdout, "\n\n READ	FCB ref:%d, Fid:%d \n\n",fcb->refcount, fd);
     FCB_incref(fcb);
-  
+
+    //assert(0);
     /* We must not go into non-preemptive domain with kernel_mutex locked */
     Mutex_Unlock(&kernel_mutex);  
 
@@ -184,10 +186,13 @@ int Write(Fid_t fd, const char *buf, unsigned int size)
     sobj = fcb->streamobj;
     devwrite = fcb->streamfunc->Write;
 
+//    fprintf(stdout, "\n\nWRITE	 FCB ref:%d, Fid:%d \n\n",fcb->refcount, fd);
+    //assert(0);
     /* make sure that the stream will not be closed (by another thread) 
        while we are using it! */
+
     FCB_incref(fcb);
-  
+
     /* We must not go into non-preemptive domain with kernel_mutex locked */
     Mutex_Unlock(&kernel_mutex);  
 

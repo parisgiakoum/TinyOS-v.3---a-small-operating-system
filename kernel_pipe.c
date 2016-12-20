@@ -68,9 +68,7 @@ int pipe_read(void* this, char *buf, unsigned int size){
 	if(pipe->fcbr != NULL){
 		int i;
 		for(i=0; i<size; i++){
-//			if(pipe->fcbw->refcount == 0){
-//
-//			}
+//			fprintf(stdout, "\n\n Read:%d 	i:%d\n\n",pipe->fcbw->refcount,i);
 				while(pipe->start==pipe->end){
 					if(pipe->fcbw->refcount == 0){
 						Mutex_Unlock(&kernel_mutex);
@@ -104,14 +102,14 @@ int pipe_write(void* this, const char *buf, unsigned int size){
 	if(pipe->fcbw != NULL){
 		int i;
 		for(i=0; i<size; i++){
+			fprintf(stdout, "\n\nWrite: %d \n\n",pipe->fcbr->refcount);
 			while(pipe->start == (pipe->end+1)%BUF_SIZE){
 				if(pipe->fcbr->refcount == 0){
 					Mutex_Unlock(&kernel_mutex);
 					return retcode = -1;
 				}
-				Cond_Signal(&pipe->rCV);
+				Cond_Broadcast(&pipe->rCV);
 				Cond_Wait(&kernel_mutex,&pipe->wCV);
-				//Mutex_Unlock(&kernel_mutex);
 			}
 
 			pipe->buffer[pipe->end] = buf[i];
