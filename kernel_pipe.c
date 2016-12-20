@@ -102,7 +102,7 @@ int pipe_write(void* this, const char *buf, unsigned int size){
 	if(pipe->fcbw != NULL){
 		int i;
 		for(i=0; i<size; i++){
-			fprintf(stdout, "\n\nWrite: %d \n\n",pipe->fcbr->refcount);
+//			fprintf(stdout, "\n\nWrite: %d \n\n",pipe->fcbr->refcount);
 			while(pipe->start == (pipe->end+1)%BUF_SIZE){
 				if(pipe->fcbr->refcount == 0){
 					Mutex_Unlock(&kernel_mutex);
