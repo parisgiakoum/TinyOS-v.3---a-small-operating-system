@@ -244,25 +244,38 @@ int ShutDown(Fid_t sock, shutdown_mode how)
 
 	Mutex_Lock(&kernel_mutex);
 	scb = get_scb(sock);
-	if(how == SHUTDOWN_READ){
-		Close(sock);
-	}else if(how == SHUTDOWN_WRITE){
-		FCB* pipew = get_fcb(scb->peercb->pipes.write);
-		if(pipew->refcount == 0){
-			scb->peercb->pipes.write = NOFILE;
-			retcode = -1;
-		}
-	}else if (how == SHUTDOWN_BOTH) {
-		FCB* piper = get_fcb(scb->peercb->pipes.read);
-		FCB* pipew = get_fcb(scb->peercb->pipes.write);
+	switch(how){
+	case SHUTDOWN_READ:
+		Mutex_Unlock(&kernel_mutex);
+		Close(scb->peercb->pipes.read);
+		Mutex_Lock(&kernel_mutex);
+//
+//		fprintf(stdout, "SHUTDOWN1");
+//						fflush(stdout);
+		break;
+	case SHUTDOWN_WRITE:
+		Mutex_Unlock(&kernel_mutex);
+		Close(scb->peercb->pipes.write);
+		Mutex_Lock(&kernel_mutex);
+//
+//		fprintf(stdout, "SHUTDOWN1");
+//						fflush(stdout);
+		break;
+	case SHUTDOWN_BOTH:
+		Mutex_Unlock(&kernel_mutex);
+		Close(scb->peercb->pipes.read);
+		Mutex_Lock(&kernel_mutex);
+		Mutex_Unlock(&kernel_mutex);
+		Close(scb->peercb->pipes.write);
+		Mutex_Lock(&kernel_mutex);
 
-		if(piper->refcount == 0 && pipew->refcount ==0){
-			scb->peercb->pipes.read = NOFILE;
-			scb->peercb->pipes.write = NOFILE;
-			retcode = -1;
-		}
+//		fprintf(stdout, "SHUTDOWN1");
+//						fflush(stdout);
+		break;
+	default:
+		fprintf(stderr, "ERROR: Shutdown mode not listed.");
+		fflush(stderr);
 	}
-
 	Mutex_Unlock(&kernel_mutex);
 	return retcode;
 }
@@ -290,19 +303,17 @@ int socket_write(void* this, const char *buf, unsigned int size){
 int socket_close(void *this){
 	SCB* sock = (SCB *)this;
 
-	if(sock <0 || sock > MAX_FILEID){
+	if(!sock)
 		return -1;
-	}
 
 	free(sock);
 	return 0;
 }
 int listener_close(void *this){
 	SCB* scb = (SCB *)this;
-	if(scb <0 || scb > MAX_FILEID){
+	if(!scb)
 		return -1;
-	}
-
+	PortT[scb->port] = NULL;
 	free(scb->lcb);
 	free(scb);
 
@@ -311,11 +322,13 @@ int listener_close(void *this){
 int peer_close(void *this){
 
 	SCB* scb = (SCB *)this;
-	if(scb <0 || scb > MAX_FILEID){
-				return -1;
-	}
-	PipeCB* pipe = get_fcb(scb->peercb->pipes.read);
-	pipe_close(pipe);
+	if(!scb)
+		return -1;
+	Mutex_Unlock(&kernel_mutex);
+	Close(scb->peercb->pipes.read);
+	Mutex_Lock(&kernel_mutex);
+	fprintf(stdout, "OOOOOKKKKK");
+					fflush(stdout);
 
 	free(scb->peercb);
 //		free(scb);

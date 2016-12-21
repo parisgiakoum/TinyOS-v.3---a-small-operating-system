@@ -1112,7 +1112,11 @@ void check_transfer(Fid_t from, Fid_t to)
 	char buffer[12] = {[0]=0};
 	int rc;
 	ASSERT((rc=Write(from,"Hello world", 12))==12);
+//	fprintf(stdout, "MPIKE WRITE");
+//			fflush(stdout);
 	ASSERT((rc=Read(to, buffer, 12))==12);
+//	fprintf(stdout, "MPIKE READ");
+//			fflush(stdout);
 	ASSERT((rc=strcmp("Hello world", buffer))==0);
 }
 
@@ -1547,13 +1551,22 @@ BOOT_TEST(test_shudown_read,
 	}
 
 	ASSERT(Write(srv, "Hello world",12)==12);
-
+	fprintf(stdout, "SHUTDOWN");
+			fflush(stdout);
 	ShutDown(cli, SHUTDOWN_READ);
+	fprintf(stdout, "\n\nSHUTDOWN OUT\n");
+				fflush(stdout);
 	char buffer[12];
+	fprintf(stdout, "MPIKE READ");
+			fflush(stdout);
 	ASSERT(Read(cli, buffer, 12)==-1);
+	fprintf(stdout, "MPIKE WRITE");
+			fflush(stdout);
 	ASSERT(Write(srv, "Hello world",12)==-1);
 
 	for(uint i=0; i< 2000; i++) {
+//		fprintf(stdout, "MPIKE");
+//		fflush(stdout);
 		ASSERT(Write(srv, "Hello world",12)==-1);
 		check_transfer(cli, srv);
 	}
@@ -1625,7 +1638,7 @@ TEST_SUITE(socket_tests,
 	&test_accept_fails_on_unbound_socket,
 	&test_accept_fails_on_connected_socket,
 //	&test_accept_reusable,
-//	&test_accept_fails_on_exhausted_fid,
+	&test_accept_fails_on_exhausted_fid,
 	&test_accept_unblocks_on_close,
 
 	&test_connect_fails_on_bad_fid,
@@ -1639,7 +1652,7 @@ TEST_SUITE(socket_tests,
 //	&test_socket_multi_producer,
 
 	&test_shudown_read,
-//	&test_shudown_write,
+	&test_shudown_write,
 
 	NULL
 };
