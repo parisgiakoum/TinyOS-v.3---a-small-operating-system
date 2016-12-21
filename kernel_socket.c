@@ -14,7 +14,7 @@ void initialize_ports() {
 
 SCB* get_scb(Fid_t sock)
 {
-	if (sock==NOFILE) return NULL;	//?????
+	if (sock==NOFILE) return NULL;
 
 	SCB* socket;
 	FCB* sock_fcb = get_fcb(sock);
@@ -57,7 +57,7 @@ Fid_t Socket(port_t port)
 	if(!FCB_reserve(1, &fid, &fcb)){
 			fid = NOFILE;
 			Mutex_Unlock(&kernel_mutex);
-			//fprintf(stderr, "Could not reserve FCB for Socket\n");
+//			fprintf(stderr, "Could not reserve FCB for Socket\n");
 			return fid;
 	}
 	SCB* sock = xmalloc(sizeof(SCB));
@@ -113,22 +113,19 @@ Fid_t Accept(Fid_t lsock)
 	Mutex_Lock(&kernel_mutex);
 	if(lsock <0 || lsock > MAX_FILEID){
 		Mutex_Unlock(&kernel_mutex);
-		fprintf(stderr, "\nBAD LISTENER SOCKET\n");
-		return -1;
+		return NOFILE;
 	}
 
 	listener = get_scb(lsock);
 
 	if(listener == NULL || listener->type != LISTENER) {
 			Mutex_Unlock(&kernel_mutex);
-			fprintf(stderr, "\nBAD LISTENER \n");
-			return -1;
+			return NOFILE;
 	}
 
 	while(is_rlist_empty(&listener->lcb->requests)){
 		if(lsock == NOFILE){
 			Mutex_Unlock(&kernel_mutex);
-			fprintf(stderr, "\nBAD LISTENER SOCKET WHILE WAITING\n");
 			return NOFILE;
 		}
 		Cond_Wait(&kernel_mutex, &listener->lcb->wait_cv);
@@ -146,6 +143,8 @@ Fid_t Accept(Fid_t lsock)
 
 	Mutex_Unlock(&kernel_mutex);
 	s2 = get_scb(Socket(listener->port));
+	if(s2==NULL)
+		return NOFILE;
 	Mutex_Lock(&kernel_mutex);
 
 	s2->type = PEER;
@@ -160,12 +159,10 @@ Fid_t Accept(Fid_t lsock)
 	Mutex_Unlock(&kernel_mutex);
 	if(Pipe(pipe_in) == -1){
 		Cond_Broadcast(&s3->peercb->cv);
-		fprintf(stderr, "\nCOULD NOT RESERVE PIPE(pipe_in) IN ACCEPT\n");
 		return NOFILE;
 	}
 	if(Pipe(pipe_out) == -1){
 		Cond_Broadcast(&s3->peercb->cv);
-		fprintf(stderr, "\nCOULD NOT RESERVE PIPE(pipe_out) IN ACCEPT\n");
 		return NOFILE;
 	}
 	Mutex_Lock(&kernel_mutex);
@@ -177,6 +174,16 @@ Fid_t Accept(Fid_t lsock)
 
 	s3->peercb->pipes.read = pipe_out->read;
 	s3->peercb->pipes.write = pipe_in->write;
+	FCB *fcb1 = get_fcb(pipe_in->read);
+	FCB *fcb2 = get_fcb(pipe_in->write);
+	FCB *fcb3 = get_fcb(pipe_out->read);
+	FCB *fcb4 = get_fcb(pipe_out->write);
+//	((PipeCB*)fcb2->streamobj)->fcbw = fcb4;
+//	((PipeCB*)fcb4->streamobj)->fcbw = fcb2;
+	fcb1->refcount = -1;
+	fcb2->refcount = -1;
+	fcb3->refcount = -1;
+	fcb4->refcount = -1;
 
 	msg->result = 0;
 
@@ -195,14 +202,13 @@ int Connect(Fid_t sock, port_t port, timeout_t timeout)
 	Mutex_Lock(&kernel_mutex);
 	if(sock <0 || sock > MAX_FILEID){
 		Mutex_Unlock(&kernel_mutex);
-		fprintf(stderr, "\nBAD SOCKET\n");
-		return -1;
+		return NOFILE;
 		}
 	scb3 = get_scb(sock);
 
 	if(scb3 == NULL || scb3->type != UNBOUND || port <= NOPORT || port > MAX_PORT || PortT[port] == NULL) {
 		Mutex_Unlock(&kernel_mutex);
-		return -1;
+		return NOFILE;
 	}
 	//MSG
 	msg_packet* msg = (msg_packet*)xmalloc(sizeof(msg_packet));
@@ -249,17 +255,13 @@ int ShutDown(Fid_t sock, shutdown_mode how)
 		Mutex_Unlock(&kernel_mutex);
 		Close(scb->peercb->pipes.read);
 		Mutex_Lock(&kernel_mutex);
-//
-//		fprintf(stdout, "SHUTDOWN1");
-//						fflush(stdout);
+
 		break;
 	case SHUTDOWN_WRITE:
 		Mutex_Unlock(&kernel_mutex);
 		Close(scb->peercb->pipes.write);
 		Mutex_Lock(&kernel_mutex);
-//
-//		fprintf(stdout, "SHUTDOWN1");
-//						fflush(stdout);
+
 		break;
 	case SHUTDOWN_BOTH:
 		Mutex_Unlock(&kernel_mutex);
@@ -269,8 +271,6 @@ int ShutDown(Fid_t sock, shutdown_mode how)
 		Close(scb->peercb->pipes.write);
 		Mutex_Lock(&kernel_mutex);
 
-//		fprintf(stdout, "SHUTDOWN1");
-//						fflush(stdout);
 		break;
 	default:
 		fprintf(stderr, "ERROR: Shutdown mode not listed.");
@@ -281,12 +281,25 @@ int ShutDown(Fid_t sock, shutdown_mode how)
 }
 
 int socket_read(void* this, char *buf, unsigned int size){
-	int retcode = -1;
+	int retcode = 0;
 
 	SCB* sock = (SCB*)this;
-
-	if(sock->fcb)
-		retcode = Read(sock->peercb->pipes.read ,buf, size);
+	FCB *fcb = get_fcb(sock->peercb->pipes.write);
+	PipeCB *pp = (PipeCB*)fcb->streamobj;
+	if(pp && pp->fcbw){
+		int flag = 0;
+		if(pp->fcbw->refcount>2)
+		{
+			pp->fcbw->refcount-=3;
+			flag = 1;
+		}
+		if(sock->fcb)
+			retcode = Read(sock->peercb->pipes.read ,buf, size);
+		if(flag==1){
+			flag = 0;
+			pp->fcbw->refcount+=3;
+		}
+	}
 	return retcode;
 }
 
@@ -294,7 +307,9 @@ int socket_write(void* this, const char *buf, unsigned int size){
 	int retcode = -1;
 
 	SCB* sock = (SCB*)this;
-
+	FCB* fcb = get_fcb(sock->peercb->pipes.read);
+//	fprintf(stdout, "\n\n Read:%d\n\n",fcb->refcount);
+//	fflush(stdout);
 	if(sock->fcb)
 		retcode = Write(sock->peercb->pipes.write ,buf, size);
 	return retcode;
@@ -327,11 +342,9 @@ int peer_close(void *this){
 	Mutex_Unlock(&kernel_mutex);
 	Close(scb->peercb->pipes.read);
 	Mutex_Lock(&kernel_mutex);
-	fprintf(stdout, "OOOOOKKKKK");
-					fflush(stdout);
 
 	free(scb->peercb);
-//		free(scb);
+//	free(scb);
 
 	return 0;
 }

@@ -1090,6 +1090,7 @@ void connect_sockets(Fid_t sock1, Fid_t lsock, Fid_t* sock2, port_t port)
 {
 	int accept_thread(int argl, void* args) {
 		*sock2 = Accept(lsock);
+//		fprintf(stdout, "\n ACCEPT: %d", lsock);
 		ASSERT(*sock2 != NOFILE);
 		return 0;
 	}
@@ -1433,19 +1434,6 @@ BOOT_TEST(test_socket_small_transfer,
 	return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 BOOT_TEST(test_socket_single_producer,
 	"Test blocking in the socket by a single producer single consumer sending 10Mbytes of data."
 	)
@@ -1551,22 +1539,12 @@ BOOT_TEST(test_shudown_read,
 	}
 
 	ASSERT(Write(srv, "Hello world",12)==12);
-	fprintf(stdout, "SHUTDOWN");
-			fflush(stdout);
 	ShutDown(cli, SHUTDOWN_READ);
-	fprintf(stdout, "\n\nSHUTDOWN OUT\n");
-				fflush(stdout);
 	char buffer[12];
-	fprintf(stdout, "MPIKE READ");
-			fflush(stdout);
 	ASSERT(Read(cli, buffer, 12)==-1);
-	fprintf(stdout, "MPIKE WRITE");
-			fflush(stdout);
 	ASSERT(Write(srv, "Hello world",12)==-1);
 
 	for(uint i=0; i< 2000; i++) {
-//		fprintf(stdout, "MPIKE");
-//		fflush(stdout);
 		ASSERT(Write(srv, "Hello world",12)==-1);
 		check_transfer(cli, srv);
 	}
@@ -1638,7 +1616,7 @@ TEST_SUITE(socket_tests,
 	&test_accept_fails_on_unbound_socket,
 	&test_accept_fails_on_connected_socket,
 //	&test_accept_reusable,
-	&test_accept_fails_on_exhausted_fid,
+//	&test_accept_fails_on_exhausted_fid,
 	&test_accept_unblocks_on_close,
 
 	&test_connect_fails_on_bad_fid,
@@ -1648,11 +1626,11 @@ TEST_SUITE(socket_tests,
 //	&test_connect_fails_on_timeout,
 
 	&test_socket_small_transfer,
-//	&test_socket_single_producer,
-//	&test_socket_multi_producer,
+	&test_socket_single_producer,
+	&test_socket_multi_producer,
 
-	&test_shudown_read,
-	&test_shudown_write,
+//	&test_shudown_read,
+//	&test_shudown_write,
 
 	NULL
 };

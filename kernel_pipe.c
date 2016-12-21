@@ -26,7 +26,7 @@ int Pipe(pipe_t* pipe)
 		fid[0] = NOFILE;
 		fid[1] = NOFILE;
 		Mutex_Unlock(&kernel_mutex);
-		fprintf(stderr, "Could not reserve FCB\n");
+//		fprintf(stderr, "Could not reserve FCB\n");
 		return -1;
 	}
 	pipe->read = fid[0];
@@ -70,7 +70,7 @@ int pipe_read(void* this, char *buf, unsigned int size){
 		for(i=0; i<size; i++){
 //			fprintf(stdout, "\n\n Read:%d 	i:%d\n\n",pipe->fcbw->refcount,i);
 				while(pipe->start==pipe->end){
-					if(pipe->fcbw->refcount == 0){
+					if(pipe->fcbw->refcount <= 0){
 						Mutex_Unlock(&kernel_mutex);
 						return retcode = i;
 					}
@@ -95,7 +95,7 @@ int pipe_read(void* this, char *buf, unsigned int size){
 int pipe_write(void* this, const char *buf, unsigned int size){
 	int retcode = -1;
 	PipeCB* pipe = (PipeCB*)this;
-	if(pipe->fcbr->refcount == 0){
+	if(pipe->fcbr->refcount <= 0){
 		return retcode = -1;
 	}
 	Mutex_Lock(&kernel_mutex);
@@ -104,7 +104,7 @@ int pipe_write(void* this, const char *buf, unsigned int size){
 		for(i=0; i<size; i++){
 //			fprintf(stdout, "\n\nWrite: %d \n\n",pipe->fcbr->refcount);
 			while(pipe->start == (pipe->end+1)%BUF_SIZE){
-				if(pipe->fcbr->refcount == 0){
+				if(pipe->fcbr->refcount <= 0){
 					Mutex_Unlock(&kernel_mutex);
 					return retcode = -1;
 				}
@@ -128,8 +128,7 @@ int pipe_close(void* this){
 	int retcode = -1;
 	if(this){
 		PipeCB* pipe = (PipeCB*)this;
-
-		if(pipe->fcbw->refcount==0 && pipe->fcbr->refcount==0){
+		if(pipe->fcbw->refcount<=0 && pipe->fcbr->refcount<=0){
 			retcode = 0;
 			free(pipe);
 		}
