@@ -269,47 +269,42 @@ int ShutDown(Fid_t sock, shutdown_mode how)
 
 int socket_read(void* this, char *buf, unsigned int size){
 	int retcode = -1;
+
 	SCB* sock = (SCB*)this;
-	retcode = Read(sock->peercb->pipes.read ,buf, size);
+
+	if(sock->fcb)
+		retcode = Read(sock->peercb->pipes.read ,buf, size);
 	return retcode;
 }
 
 int socket_write(void* this, const char *buf, unsigned int size){
 	int retcode = -1;
+
 	SCB* sock = (SCB*)this;
-	retcode = Write(sock->peercb->pipes.write ,buf, size);
+
+	if(sock->fcb)
+		retcode = Write(sock->peercb->pipes.write ,buf, size);
 	return retcode;
 }
 
-int socket_close(void *this)
-{
+int socket_close(void *this){
+	SCB* sock = (SCB *)this;
 
-	SCB* scb = (SCB *)this;
-	if(scb <0 || scb > MAX_FILEID){
-					return -1;
-	}
-	if (PortT[scb->port] != NULL) {
-		PortT[scb->port] = NULL;
-		scb->type = UNBOUND;
-
-		free(scb);
+	if(sock <0 || sock > MAX_FILEID){
+		return -1;
 	}
 
+	free(sock);
 	return 0;
 }
 int listener_close(void *this){
 	SCB* scb = (SCB *)this;
 	if(scb <0 || scb > MAX_FILEID){
-					return -1;
+		return -1;
 	}
 
-	if (PortT[scb->port] != NULL) {
-		PortT[scb->port] = NULL;
-		scb->type = UNBOUND;
-
-		free(scb->lcb);
-//		free(scb);
-	}
+	free(scb->lcb);
+	free(scb);
 
 	return 0;
 }
@@ -319,14 +314,11 @@ int peer_close(void *this){
 	if(scb <0 || scb > MAX_FILEID){
 				return -1;
 	}
+	PipeCB* pipe = get_fcb(scb->peercb->pipes.read);
+	pipe_close(pipe);
 
-	if (PortT[scb->port] != NULL) {
-		PortT[scb->port] = NULL;
-		scb->type = UNBOUND;
-
-		free(scb->peercb);
+	free(scb->peercb);
 //		free(scb);
-	}
 
 	return 0;
 }

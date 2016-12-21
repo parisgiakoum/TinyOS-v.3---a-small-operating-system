@@ -126,12 +126,13 @@ int pipe_write(void* this, const char *buf, unsigned int size){
 
 int pipe_close(void* this){
 	int retcode = -1;
-	PipeCB* pipe = (PipeCB*)this;
+	if(this){
+		PipeCB* pipe = (PipeCB*)this;
 
-	if(pipe->fcbw->refcount==0 && pipe->fcbr->refcount==0){
-		retcode = 0;
-		free(pipe);
+		if(pipe->fcbw->refcount==0 && pipe->fcbr->refcount==0){
+			retcode = 0;
+			free(pipe);
+		}
 	}
-
 	return retcode;
 }
