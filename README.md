@@ -7,10 +7,6 @@ but since it was first conceived in 2003, there was a name collision that I have
 This code (in its long history) has been used for many years to teach the Operating Systems course
 at the Technical University of Crete.
 
-In its current incarnation, tinyos supports a multicore preemptive scheduler, serial terminal devices, and a
-unix like process model. It does not support (yet) memory management, block devices, or network devices. These
-extensions are planned for the future.
-
 ## Quick start
 
 After downloading the code, just build it.
